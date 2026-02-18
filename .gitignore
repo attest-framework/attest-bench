@@ -30,3 +30,21 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# Agentic Systems
+.agent
+.claude/
+.gemini
+.opencode/
+.serena/
+
+# Developer workspace (Sage-Dev generated files)
+.docs/
+.sage/
+
+# attest-bench specific
+bin/
+*.pb.go
+results/*.txt
+!results/baselines/
+!results/.gitkeep
