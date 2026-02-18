@@ -7,12 +7,48 @@ on:
     branches: [main]
 
 jobs:
-  benchmark:
-    name: Run benchmarks
+  test:
+    name: Test & smoke-check benchmarks
     runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build engine
+        run: |
+          CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o bin/attest-engine ./engine/cmd/attest-engine
+
+      - name: Run tests
+        run: go test ./... -count=1
+
+      - name: Smoke-check benchmarks
+        working-directory: engine
+        run: |
+          go test ./internal/protocol/ \
+            -run='^$' \
+            -bench=. \
+            -benchtime=1x \
+            -cpu=1
+
+  benchmark:
+    name: Benchmark comparison
+    needs: test
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       pull-requests: write
       contents: read
+
+    env:
+      BENCH_FILTER: 'Benchmark(Serialization/|StdioRoundtrip/|Initialize$|Shutdown$|ConcurrentSessions$)'
 
     steps:
       - name: Checkout PR branch
@@ -23,13 +59,11 @@ jobs:
       - name: Checkout base branch
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.base.sha || github.event.before }}
+          ref: ${{ github.event.pull_request.base.sha }}
           path: base
-        if: github.event_name == 'pull_request'
 
       - name: Check base has benchmarks
         id: base-check
-        if: github.event_name == 'pull_request'
         run: |
           if [[ -f base/go.mod && -d base/engine ]]; then
             echo "has_benchmarks=true" >> "$GITHUB_OUTPUT"
@@ -57,36 +91,36 @@ jobs:
         run: |
           go test ./internal/protocol/ \
             -run='^$' \
-            -bench=. \
-            -benchtime=3s \
-            -count=10 \
+            -bench="${BENCH_FILTER}" \
+            -benchtime=1s \
+            -count=5 \
             -cpu=1 \
             -benchmem \
             | tee ../results/bench-pr.txt
 
       - name: Build engine (base)
         working-directory: base
-        if: github.event_name == 'pull_request' && steps.base-check.outputs.has_benchmarks == 'true'
+        if: steps.base-check.outputs.has_benchmarks == 'true'
         run: |
           CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o bin/attest-engine ./engine/cmd/attest-engine
 
       - name: Run benchmarks (base)
         working-directory: base/engine
-        if: github.event_name == 'pull_request' && steps.base-check.outputs.has_benchmarks == 'true'
+        if: steps.base-check.outputs.has_benchmarks == 'true'
         run: |
           mkdir -p ../results
           go test ./internal/protocol/ \
             -run='^$' \
-            -bench=. \
-            -benchtime=3s \
-            -count=10 \
+            -bench="${BENCH_FILTER}" \
+            -benchtime=1s \
+            -count=5 \
             -cpu=1 \
             -benchmem \
             | tee ../results/bench-base.txt
 
       - name: Compare with benchstat
         id: benchstat
-        if: github.event_name == 'pull_request' && steps.base-check.outputs.has_benchmarks == 'true'
+        if: steps.base-check.outputs.has_benchmarks == 'true'
         run: |
           OUTPUT=$(benchstat base/results/bench-base.txt pr/results/bench-pr.txt 2>&1)
           echo "${OUTPUT}"
@@ -98,7 +132,7 @@ jobs:
 
       - name: Comment PR with comparison
         uses: actions/github-script@v7
-        if: github.event_name == 'pull_request' && steps.base-check.outputs.has_benchmarks == 'true'
+        if: steps.base-check.outputs.has_benchmarks == 'true'
         with:
           script: |
             const body = `## Benchmark Comparison
@@ -107,7 +141,8 @@ jobs:
             ${{ steps.benchstat.outputs.result }}
             \`\`\`
 
-            _Baseline: \`${{ github.event.pull_request.base.sha }}\` — PR: \`${{ github.event.pull_request.head.sha }}\`_`;
+            _Baseline: \`${{ github.event.pull_request.base.sha }}\` — PR: \`${{ github.event.pull_request.head.sha }}\`_
+            _Config: \`-benchtime=1s -count=5\` — filtered to core benchmarks_`;
 
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
@@ -137,7 +172,7 @@ jobs:
 
       - name: Comment PR (no baseline)
         uses: actions/github-script@v7
-        if: github.event_name == 'pull_request' && steps.base-check.outputs.has_benchmarks != 'true'
+        if: steps.base-check.outputs.has_benchmarks != 'true'
         with:
           script: |
             const body = `## Benchmark Results (no baseline)
@@ -161,7 +196,7 @@ jobs:
 
       - name: Upload base benchmark results
         uses: actions/upload-artifact@v4
-        if: github.event_name == 'pull_request' && steps.base-check.outputs.has_benchmarks == 'true'
+        if: steps.base-check.outputs.has_benchmarks == 'true'
         with:
           name: bench-results-base
           path: base/results/bench-base.txt
