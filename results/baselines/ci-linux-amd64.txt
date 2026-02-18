@@ -1,0 +1,196 @@
+goos: linux
+goarch: amd64
+pkg: github.com/attest-framework/attest-bench/engine/internal/protocol
+cpu: AMD EPYC 7763 64-Core Processor                
+BenchmarkSerialization/10step_5assert         	   60060	     86899 ns/op	  64.63 MB/s	   12857 B/op	      14 allocs/op
+BenchmarkSerialization/10step_5assert         	   72297	     84485 ns/op	  66.47 MB/s	   12857 B/op	      14 allocs/op
+BenchmarkSerialization/10step_5assert         	   73392	     81792 ns/op	  68.66 MB/s	   12857 B/op	      14 allocs/op
+BenchmarkSerialization/10step_5assert         	   72879	     81814 ns/op	  68.64 MB/s	   12857 B/op	      14 allocs/op
+BenchmarkSerialization/10step_5assert         	   73689	     81740 ns/op	  68.71 MB/s	   12857 B/op	      14 allocs/op
+BenchmarkSerialization/50step_10assert        	   10000	    536691 ns/op	  73.14 MB/s	   82367 B/op	      13 allocs/op
+BenchmarkSerialization/50step_10assert        	   10000	    540717 ns/op	  72.59 MB/s	   82367 B/op	      13 allocs/op
+BenchmarkSerialization/50step_10assert        	   10000	    540760 ns/op	  72.59 MB/s	   82367 B/op	      13 allocs/op
+BenchmarkSerialization/50step_10assert        	   10000	    541149 ns/op	  72.54 MB/s	   82367 B/op	      13 allocs/op
+BenchmarkSerialization/50step_10assert        	   10000	    544752 ns/op	  72.06 MB/s	   82366 B/op	      13 allocs/op
+BenchmarkSerialization/100step_10assert       	    3816	   1550079 ns/op	  75.25 MB/s	  246348 B/op	      14 allocs/op
+BenchmarkSerialization/100step_10assert       	    3906	   1537850 ns/op	  75.85 MB/s	  246348 B/op	      14 allocs/op
+BenchmarkSerialization/100step_10assert       	    3884	   1538594 ns/op	  75.81 MB/s	  246347 B/op	      14 allocs/op
+BenchmarkSerialization/100step_10assert       	    3900	   1541512 ns/op	  75.67 MB/s	  246347 B/op	      14 allocs/op
+BenchmarkSerialization/100step_10assert       	    3906	   1537442 ns/op	  75.87 MB/s	  246348 B/op	      14 allocs/op
+BenchmarkSerialization/500step_20assert       	     417	  14305466 ns/op	  77.42 MB/s	 2228932 B/op	      16 allocs/op
+BenchmarkSerialization/500step_20assert       	     415	  14413065 ns/op	  76.84 MB/s	 2228933 B/op	      16 allocs/op
+BenchmarkSerialization/500step_20assert       	     415	  14400921 ns/op	  76.91 MB/s	 2228932 B/op	      16 allocs/op
+BenchmarkSerialization/500step_20assert       	     416	  14382732 ns/op	  77.00 MB/s	 2228932 B/op	      16 allocs/op
+BenchmarkSerialization/500step_20assert       	     415	  14516905 ns/op	  76.29 MB/s	 2228932 B/op	      16 allocs/op
+BenchmarkStdioRoundtrip/10step_5assert        	   61443	     97812 ns/op	  57.42 MB/s	   21178 B/op	      50 allocs/op
+BenchmarkStdioRoundtrip/10step_5assert        	   61658	     97640 ns/op	  57.52 MB/s	   21178 B/op	      50 allocs/op
+BenchmarkStdioRoundtrip/10step_5assert        	   61705	     97454 ns/op	  57.63 MB/s	   21178 B/op	      50 allocs/op
+BenchmarkStdioRoundtrip/10step_5assert        	   60297	     98662 ns/op	  56.92 MB/s	   21178 B/op	      50 allocs/op
+BenchmarkStdioRoundtrip/10step_5assert        	   61688	     97191 ns/op	  57.78 MB/s	   21178 B/op	      50 allocs/op
+BenchmarkStdioRoundtrip/50step_10assert       	   10000	    604157 ns/op	  64.97 MB/s	  128926 B/op	      65 allocs/op
+BenchmarkStdioRoundtrip/50step_10assert       	    9891	    600447 ns/op	  65.37 MB/s	  128926 B/op	      65 allocs/op
+BenchmarkStdioRoundtrip/50step_10assert       	   10000	    602561 ns/op	  65.14 MB/s	  128927 B/op	      65 allocs/op
+BenchmarkStdioRoundtrip/50step_10assert       	    9973	    605809 ns/op	  64.79 MB/s	  128926 B/op	      65 allocs/op
+BenchmarkStdioRoundtrip/50step_10assert       	    9946	    609227 ns/op	  64.43 MB/s	  128926 B/op	      65 allocs/op
+BenchmarkStdioRoundtrip/100step_10assert      	    3453	   1718906 ns/op	  67.86 MB/s	  374845 B/op	      66 allocs/op
+BenchmarkStdioRoundtrip/100step_10assert      	    3510	   1719845 ns/op	  67.82 MB/s	  374845 B/op	      66 allocs/op
+BenchmarkStdioRoundtrip/100step_10assert      	    3478	   1721509 ns/op	  67.76 MB/s	  374845 B/op	      66 allocs/op
+BenchmarkStdioRoundtrip/100step_10assert      	    3457	   1725805 ns/op	  67.59 MB/s	  374845 B/op	      66 allocs/op
+BenchmarkStdioRoundtrip/100step_10assert      	    3481	   1733650 ns/op	  67.28 MB/s	  374845 B/op	      66 allocs/op
+BenchmarkStdioRoundtrip/500step_20assert      	     369	  16202154 ns/op	  68.36 MB/s	 4402448 B/op	     102 allocs/op
+BenchmarkStdioRoundtrip/500step_20assert      	     372	  16110276 ns/op	  68.75 MB/s	 4402448 B/op	     102 allocs/op
+BenchmarkStdioRoundtrip/500step_20assert      	     372	  16158243 ns/op	  68.54 MB/s	 4402448 B/op	     102 allocs/op
+BenchmarkStdioRoundtrip/500step_20assert      	     382	  15628020 ns/op	  70.87 MB/s	 4402503 B/op	     103 allocs/op
+BenchmarkStdioRoundtrip/500step_20assert      	     380	  15787305 ns/op	  70.15 MB/s	 4402503 B/op	     103 allocs/op
+BenchmarkInitialize                           	   74266	     79316 ns/op	 1060586 B/op	      66 allocs/op
+BenchmarkInitialize                           	   74728	     79174 ns/op	 1060586 B/op	      66 allocs/op
+BenchmarkInitialize                           	   75856	     78937 ns/op	 1060586 B/op	      66 allocs/op
+BenchmarkInitialize                           	   74025	     80726 ns/op	 1060586 B/op	      66 allocs/op
+BenchmarkInitialize                           	   75651	     79353 ns/op	 1060586 B/op	      66 allocs/op
+BenchmarkShutdown                             	   75270	     80589 ns/op	 1060586 B/op	      66 allocs/op
+BenchmarkShutdown                             	   73807	     81362 ns/op	 1060586 B/op	      66 allocs/op
+BenchmarkShutdown                             	   72908	     81024 ns/op	 1060586 B/op	      66 allocs/op
+BenchmarkShutdown                             	   74502	     80074 ns/op	 1060586 B/op	      66 allocs/op
+BenchmarkShutdown                             	   75213	     80191 ns/op	 1060586 B/op	      66 allocs/op
+BenchmarkSubprocessRoundtrip/10step_5assert   	    3139	   1906185 ns/op	   20848 B/op	      58 allocs/op
+BenchmarkSubprocessRoundtrip/10step_5assert   	    3156	   1915955 ns/op	   20848 B/op	      58 allocs/op
+BenchmarkSubprocessRoundtrip/10step_5assert   	    3162	   1899499 ns/op	   20848 B/op	      58 allocs/op
+BenchmarkSubprocessRoundtrip/10step_5assert   	    3140	   1911064 ns/op	   20848 B/op	      58 allocs/op
+BenchmarkSubprocessRoundtrip/10step_5assert   	    3138	   1907578 ns/op	   20848 B/op	      58 allocs/op
+BenchmarkSubprocessRoundtrip/100step_10assert 	    1556	   3896151 ns/op	   21232 B/op	      58 allocs/op
+BenchmarkSubprocessRoundtrip/100step_10assert 	    1539	   3888878 ns/op	   21232 B/op	      58 allocs/op
+BenchmarkSubprocessRoundtrip/100step_10assert 	    1530	   3899455 ns/op	   21232 B/op	      58 allocs/op
+BenchmarkSubprocessRoundtrip/100step_10assert 	    1536	   3899524 ns/op	   21232 B/op	      58 allocs/op
+BenchmarkSubprocessRoundtrip/100step_10assert 	    1546	   3900676 ns/op	   21232 B/op	      58 allocs/op
+BenchmarkSubprocessRoundtrip/xl_500step_20assert         	     290	  20687402 ns/op	   21872 B/op	      58 allocs/op
+BenchmarkSubprocessRoundtrip/xl_500step_20assert         	     290	  20652004 ns/op	   21873 B/op	      58 allocs/op
+BenchmarkSubprocessRoundtrip/xl_500step_20assert         	     289	  20656081 ns/op	   21873 B/op	      58 allocs/op
+BenchmarkSubprocessRoundtrip/xl_500step_20assert         	     289	  20691758 ns/op	   21873 B/op	      58 allocs/op
+BenchmarkSubprocessRoundtrip/xl_500step_20assert         	     290	  20640573 ns/op	   21873 B/op	      58 allocs/op
+BenchmarkEngineStartup                                   	    3512	   1703588 ns/op	   20897 B/op	      66 allocs/op
+BenchmarkEngineStartup                                   	    3573	   1693874 ns/op	   20897 B/op	      66 allocs/op
+BenchmarkEngineStartup                                   	    3550	   1708569 ns/op	   20897 B/op	      66 allocs/op
+BenchmarkEngineStartup                                   	    3530	   1716424 ns/op	   20897 B/op	      66 allocs/op
+BenchmarkEngineStartup                                   	    3453	   1731764 ns/op	   20897 B/op	      66 allocs/op
+BenchmarkConcurrentSessions                              	     490	  12255227 ns/op	 4699739 B/op	    1440 allocs/op
+BenchmarkConcurrentSessions                              	     489	  12247589 ns/op	 4699736 B/op	    1440 allocs/op
+BenchmarkConcurrentSessions                              	     490	  12252818 ns/op	 4699736 B/op	    1440 allocs/op
+BenchmarkConcurrentSessions                              	     489	  12255814 ns/op	 4699736 B/op	    1440 allocs/op
+BenchmarkConcurrentSessions                              	     488	  12258755 ns/op	 4699736 B/op	    1440 allocs/op
+BenchmarkSerializationScaling/10_steps                   	   78008	     77274 ns/op	  66.80 MB/s	   19640 B/op	     256 allocs/op
+BenchmarkSerializationScaling/10_steps                   	   77980	     77226 ns/op	  66.84 MB/s	   19640 B/op	     256 allocs/op
+BenchmarkSerializationScaling/10_steps                   	   78127	     76759 ns/op	  67.25 MB/s	   19640 B/op	     256 allocs/op
+BenchmarkSerializationScaling/10_steps                   	   78812	     76659 ns/op	  67.34 MB/s	   19640 B/op	     256 allocs/op
+BenchmarkSerializationScaling/10_steps                   	   78943	     76642 ns/op	  67.35 MB/s	   19640 B/op	     256 allocs/op
+BenchmarkSerializationScaling/50_steps                   	   13038	    460001 ns/op	  83.54 MB/s	  121614 B/op	    1263 allocs/op
+BenchmarkSerializationScaling/50_steps                   	   13126	    457745 ns/op	  83.95 MB/s	  121614 B/op	    1263 allocs/op
+BenchmarkSerializationScaling/50_steps                   	   13081	    458071 ns/op	  83.89 MB/s	  121614 B/op	    1263 allocs/op
+BenchmarkSerializationScaling/50_steps                   	   13168	    455145 ns/op	  84.43 MB/s	  121614 B/op	    1263 allocs/op
+BenchmarkSerializationScaling/50_steps                   	   13215	    453874 ns/op	  84.66 MB/s	  121614 B/op	    1263 allocs/op
+BenchmarkSerializationScaling/100_steps                  	    5154	   1176862 ns/op	  98.41 MB/s	  338409 B/op	    2585 allocs/op
+BenchmarkSerializationScaling/100_steps                  	    5041	   1176221 ns/op	  98.47 MB/s	  338409 B/op	    2585 allocs/op
+BenchmarkSerializationScaling/100_steps                  	    5058	   1175963 ns/op	  98.49 MB/s	  338409 B/op	    2585 allocs/op
+BenchmarkSerializationScaling/100_steps                  	    5150	   1177225 ns/op	  98.38 MB/s	  338409 B/op	    2585 allocs/op
+BenchmarkSerializationScaling/100_steps                  	    5084	   1177501 ns/op	  98.36 MB/s	  338409 B/op	    2585 allocs/op
+BenchmarkSerializationScaling/250_steps                  	    1773	   3398415 ns/op	  96.62 MB/s	  948913 B/op	    7521 allocs/op
+BenchmarkSerializationScaling/250_steps                  	    1771	   3413231 ns/op	  96.20 MB/s	  948914 B/op	    7521 allocs/op
+BenchmarkSerializationScaling/250_steps                  	    1759	   3399043 ns/op	  96.60 MB/s	  948915 B/op	    7521 allocs/op
+BenchmarkSerializationScaling/250_steps                  	    1773	   3369410 ns/op	  97.45 MB/s	  948914 B/op	    7521 allocs/op
+BenchmarkSerializationScaling/250_steps                  	    1770	   3376041 ns/op	  97.26 MB/s	  948914 B/op	    7521 allocs/op
+BenchmarkSerializationScaling/500_steps                  	     639	   9403820 ns/op	 117.61 MB/s	 2794895 B/op	   12753 allocs/op
+BenchmarkSerializationScaling/500_steps                  	     660	   9111345 ns/op	 121.38 MB/s	 2794895 B/op	   12753 allocs/op
+BenchmarkSerializationScaling/500_steps                  	     652	   9315587 ns/op	 118.72 MB/s	 2794898 B/op	   12753 allocs/op
+BenchmarkSerializationScaling/500_steps                  	     633	   9350782 ns/op	 118.27 MB/s	 2794896 B/op	   12753 allocs/op
+BenchmarkSerializationScaling/500_steps                  	     639	   9254374 ns/op	 119.51 MB/s	 2794894 B/op	   12753 allocs/op
+BenchmarkSerializationScaling/1000_steps                 	     320	  18604873 ns/op	 117.90 MB/s	 5473725 B/op	   25210 allocs/op
+BenchmarkSerializationScaling/1000_steps                 	     333	  17987619 ns/op	 121.95 MB/s	 5473724 B/op	   25210 allocs/op
+BenchmarkSerializationScaling/1000_steps                 	     314	  18820779 ns/op	 116.55 MB/s	 5473726 B/op	   25210 allocs/op
+BenchmarkSerializationScaling/1000_steps                 	     325	  18257661 ns/op	 120.15 MB/s	 5473723 B/op	   25210 allocs/op
+BenchmarkSerializationScaling/1000_steps                 	     330	  18171233 ns/op	 120.72 MB/s	 5473721 B/op	   25210 allocs/op
+BenchmarkConcurrentSessions_Scaled/2_sessions            	     489	  12293111 ns/op	       585.0 p50_µs	         1.174 p99/p50_ratio	       687.0 p99_µs	 4700416 B/op	    1451 allocs/op
+BenchmarkConcurrentSessions_Scaled/2_sessions            	     486	  12312468 ns/op	       587.0 p50_µs	         1.046 p99/p50_ratio	       614.0 p99_µs	 4700414 B/op	    1451 allocs/op
+BenchmarkConcurrentSessions_Scaled/2_sessions            	     488	  12252759 ns/op	       589.0 p50_µs	         1.193 p99/p50_ratio	       702.0 p99_µs	 4700414 B/op	    1451 allocs/op
+BenchmarkConcurrentSessions_Scaled/2_sessions            	     487	  12279952 ns/op	       586.0 p50_µs	         1.076 p99/p50_ratio	       630.0 p99_µs	 4700414 B/op	    1451 allocs/op
+BenchmarkConcurrentSessions_Scaled/2_sessions            	     488	  12274888 ns/op	       586.0 p50_µs	         1.154 p99/p50_ratio	       676.0 p99_µs	 4700414 B/op	    1451 allocs/op
+BenchmarkConcurrentSessions_Scaled/5_sessions            	     192	  30938721 ns/op	       584.0 p50_µs	         1.613 p99/p50_ratio	       943.0 p99_µs	11750518 B/op	    3609 allocs/op
+BenchmarkConcurrentSessions_Scaled/5_sessions            	     195	  30559140 ns/op	       586.0 p50_µs	         1.074 p99/p50_ratio	       630.0 p99_µs	11750499 B/op	    3608 allocs/op
+BenchmarkConcurrentSessions_Scaled/5_sessions            	     194	  30689726 ns/op	       587.0 p50_µs	         1.112 p99/p50_ratio	       652.0 p99_µs	11750499 B/op	    3609 allocs/op
+BenchmarkConcurrentSessions_Scaled/5_sessions            	     194	  30712409 ns/op	       586.0 p50_µs	         1.223 p99/p50_ratio	       717.0 p99_µs	11750499 B/op	    3609 allocs/op
+BenchmarkConcurrentSessions_Scaled/5_sessions            	     195	  30561584 ns/op	       583.0 p50_µs	         1.044 p99/p50_ratio	       609.0 p99_µs	11750498 B/op	    3608 allocs/op
+BenchmarkConcurrentSessions_Scaled/10_sessions           	      96	  62175625 ns/op	       584.0 p50_µs	         1.120 p99/p50_ratio	       655.0 p99_µs	23500647 B/op	    7202 allocs/op
+BenchmarkConcurrentSessions_Scaled/10_sessions           	      94	  61930699 ns/op	       584.0 p50_µs	         1.738 p99/p50_ratio	      1016 p99_µs	23500595 B/op	    7202 allocs/op
+BenchmarkConcurrentSessions_Scaled/10_sessions           	      93	  61666904 ns/op	       585.0 p50_µs	         1.771 p99/p50_ratio	      1037 p99_µs	23500590 B/op	    7202 allocs/op
+BenchmarkConcurrentSessions_Scaled/10_sessions           	      96	  61627229 ns/op	       586.0 p50_µs	         1.149 p99/p50_ratio	       673.0 p99_µs	23500590 B/op	    7202 allocs/op
+BenchmarkConcurrentSessions_Scaled/10_sessions           	      93	  62395843 ns/op	       587.0 p50_µs	         1.705 p99/p50_ratio	      1001 p99_µs	23500595 B/op	    7202 allocs/op
+BenchmarkSustainedLoad                                   	    3484	   1734974 ns/op	      3332 max_µs	      1677 p50_µs	      2140 p95_µs	      2550 p99_µs	  374855 B/op	      66 allocs/op
+BenchmarkSustainedLoad                                   	    3432	   1723375 ns/op	      2696 max_µs	      1677 p50_µs	      2128 p95_µs	      2219 p99_µs	  374855 B/op	      66 allocs/op
+BenchmarkSustainedLoad                                   	    3484	   1731932 ns/op	      2621 max_µs	      1679 p50_µs	      2202 p95_µs	      2271 p99_µs	  374855 B/op	      66 allocs/op
+BenchmarkSustainedLoad                                   	    3446	   1730477 ns/op	      3039 max_µs	      1679 p50_µs	      2140 p95_µs	      2261 p99_µs	  374855 B/op	      66 allocs/op
+BenchmarkSustainedLoad                                   	    3482	   1720989 ns/op	      2610 max_µs	      1676 p50_µs	      2129 p95_µs	      2223 p99_µs	  374855 B/op	      66 allocs/op
+BenchmarkCodecComparison/encoding_json/10_steps          	   78025	     77046 ns/op	  67.00 MB/s	   19640 B/op	     256 allocs/op
+BenchmarkCodecComparison/encoding_json/10_steps          	   77853	     77354 ns/op	  66.73 MB/s	   19640 B/op	     256 allocs/op
+BenchmarkCodecComparison/encoding_json/10_steps          	   77088	     77380 ns/op	  66.71 MB/s	   19640 B/op	     256 allocs/op
+BenchmarkCodecComparison/encoding_json/10_steps          	   77763	     77300 ns/op	  66.78 MB/s	   19640 B/op	     256 allocs/op
+BenchmarkCodecComparison/encoding_json/10_steps          	   77710	     77317 ns/op	  66.76 MB/s	   19640 B/op	     256 allocs/op
+BenchmarkCodecComparison/encoding_json/100_steps         	    5082	   1202408 ns/op	  96.32 MB/s	  338409 B/op	    2585 allocs/op
+BenchmarkCodecComparison/encoding_json/100_steps         	    4947	   1188900 ns/op	  97.42 MB/s	  338409 B/op	    2585 allocs/op
+BenchmarkCodecComparison/encoding_json/100_steps         	    5060	   1195964 ns/op	  96.84 MB/s	  338409 B/op	    2585 allocs/op
+BenchmarkCodecComparison/encoding_json/100_steps         	    5026	   1194345 ns/op	  96.97 MB/s	  338409 B/op	    2585 allocs/op
+BenchmarkCodecComparison/encoding_json/100_steps         	    5140	   1195292 ns/op	  96.90 MB/s	  338409 B/op	    2585 allocs/op
+BenchmarkCodecComparison/encoding_json/500_steps         	     632	   9428194 ns/op	 117.30 MB/s	 2794897 B/op	   12753 allocs/op
+BenchmarkCodecComparison/encoding_json/500_steps         	     636	   9343839 ns/op	 118.36 MB/s	 2794896 B/op	   12753 allocs/op
+BenchmarkCodecComparison/encoding_json/500_steps         	     633	   9406798 ns/op	 117.57 MB/s	 2794896 B/op	   12753 allocs/op
+BenchmarkCodecComparison/encoding_json/500_steps         	     634	   9383781 ns/op	 117.86 MB/s	 2794897 B/op	   12753 allocs/op
+BenchmarkCodecComparison/encoding_json/500_steps         	     628	   9486868 ns/op	 116.58 MB/s	 2794895 B/op	   12753 allocs/op
+BenchmarkCodecComparison/json_iterator/10_steps          	  136563	     44978 ns/op	 114.77 MB/s	   24199 B/op	     316 allocs/op
+BenchmarkCodecComparison/json_iterator/10_steps          	  136329	     45248 ns/op	 114.08 MB/s	   24199 B/op	     316 allocs/op
+BenchmarkCodecComparison/json_iterator/10_steps          	  137234	     44212 ns/op	 116.76 MB/s	   24199 B/op	     316 allocs/op
+BenchmarkCodecComparison/json_iterator/10_steps          	  138252	     44462 ns/op	 116.10 MB/s	   24199 B/op	     316 allocs/op
+BenchmarkCodecComparison/json_iterator/10_steps          	  134030	     44630 ns/op	 115.66 MB/s	   24199 B/op	     316 allocs/op
+BenchmarkCodecComparison/json_iterator/100_steps         	    8784	    681341 ns/op	 169.99 MB/s	  409337 B/op	    3311 allocs/op
+BenchmarkCodecComparison/json_iterator/100_steps         	    8878	    678625 ns/op	 170.67 MB/s	  409223 B/op	    3311 allocs/op
+BenchmarkCodecComparison/json_iterator/100_steps         	    9042	    678087 ns/op	 170.80 MB/s	  409224 B/op	    3311 allocs/op
+BenchmarkCodecComparison/json_iterator/100_steps         	    8983	    678710 ns/op	 170.65 MB/s	  409224 B/op	    3311 allocs/op
+BenchmarkCodecComparison/json_iterator/100_steps         	    9115	    677252 ns/op	 171.01 MB/s	  409223 B/op	    3311 allocs/op
+BenchmarkCodecComparison/json_iterator/500_steps         	    1023	   5295748 ns/op	 208.84 MB/s	 3229234 B/op	   16567 allocs/op
+BenchmarkCodecComparison/json_iterator/500_steps         	    1132	   5287018 ns/op	 209.18 MB/s	 3228244 B/op	   16567 allocs/op
+BenchmarkCodecComparison/json_iterator/500_steps         	    1118	   5215774 ns/op	 212.04 MB/s	 3228359 B/op	   16567 allocs/op
+BenchmarkCodecComparison/json_iterator/500_steps         	    1125	   5218285 ns/op	 211.94 MB/s	 3228305 B/op	   16567 allocs/op
+BenchmarkCodecComparison/json_iterator/500_steps         	    1171	   5194771 ns/op	 212.90 MB/s	 3227937 B/op	   16567 allocs/op
+BenchmarkCodecComparison/segmentio/10_steps              	  121732	     49634 ns/op	 104.00 MB/s	   48375 B/op	     160 allocs/op
+BenchmarkCodecComparison/segmentio/10_steps              	  121790	     50062 ns/op	 103.11 MB/s	   48375 B/op	     160 allocs/op
+BenchmarkCodecComparison/segmentio/10_steps              	  120085	     49666 ns/op	 103.93 MB/s	   48375 B/op	     160 allocs/op
+BenchmarkCodecComparison/segmentio/10_steps              	  121785	     49732 ns/op	 103.80 MB/s	   48375 B/op	     160 allocs/op
+BenchmarkCodecComparison/segmentio/10_steps              	  117591	     49924 ns/op	 103.40 MB/s	   48375 B/op	     160 allocs/op
+BenchmarkCodecComparison/segmentio/100_steps             	    8756	    692060 ns/op	 167.35 MB/s	  691127 B/op	    1649 allocs/op
+BenchmarkCodecComparison/segmentio/100_steps             	    8706	    690271 ns/op	 167.79 MB/s	  691128 B/op	    1649 allocs/op
+BenchmarkCodecComparison/segmentio/100_steps             	    8876	    689201 ns/op	 168.05 MB/s	  691128 B/op	    1649 allocs/op
+BenchmarkCodecComparison/segmentio/100_steps             	    8550	    689595 ns/op	 167.95 MB/s	  691128 B/op	    1649 allocs/op
+BenchmarkCodecComparison/segmentio/100_steps             	    8979	    689051 ns/op	 168.08 MB/s	  691128 B/op	    1649 allocs/op
+BenchmarkCodecComparison/segmentio/500_steps             	    1198	   4930419 ns/op	 224.31 MB/s	 4847529 B/op	    8198 allocs/op
+BenchmarkCodecComparison/segmentio/500_steps             	    1213	   4908196 ns/op	 225.33 MB/s	 4852755 B/op	    8197 allocs/op
+BenchmarkCodecComparison/segmentio/500_steps             	    1222	   4924976 ns/op	 224.56 MB/s	 4833555 B/op	    8197 allocs/op
+BenchmarkCodecComparison/segmentio/500_steps             	    1245	   5037975 ns/op	 219.52 MB/s	 4816140 B/op	    8197 allocs/op
+BenchmarkCodecComparison/segmentio/500_steps             	    1237	   4972982 ns/op	 222.39 MB/s	 4800793 B/op	    8197 allocs/op
+BenchmarkLatency_StdioRoundtrip/10step_5assert           	   58051	     99315 ns/op	        93.00 p50_us	       128.0 p95_us	       206.0 p99_us	   21221 B/op	      50 allocs/op
+BenchmarkLatency_StdioRoundtrip/10step_5assert           	   60906	     98667 ns/op	        93.00 p50_us	       115.0 p95_us	       208.0 p99_us	   21219 B/op	      50 allocs/op
+BenchmarkLatency_StdioRoundtrip/10step_5assert           	   61003	     98343 ns/op	        93.00 p50_us	       114.0 p95_us	       206.0 p99_us	   21219 B/op	      50 allocs/op
+BenchmarkLatency_StdioRoundtrip/10step_5assert           	   60921	     98565 ns/op	        93.00 p50_us	       117.0 p95_us	       208.0 p99_us	   21219 B/op	      50 allocs/op
+BenchmarkLatency_StdioRoundtrip/10step_5assert           	   60844	     98563 ns/op	        93.00 p50_us	       116.0 p95_us	       207.0 p99_us	   21219 B/op	      50 allocs/op
+BenchmarkLatency_StdioRoundtrip/50step_10assert          	    9924	    606976 ns/op	       583.0 p50_us	       864.0 p95_us	       952.0 p99_us	  128963 B/op	      65 allocs/op
+BenchmarkLatency_StdioRoundtrip/50step_10assert          	    9945	    606985 ns/op	       583.0 p50_us	       874.0 p95_us	       966.0 p99_us	  128963 B/op	      65 allocs/op
+BenchmarkLatency_StdioRoundtrip/50step_10assert          	    9942	    606366 ns/op	       583.0 p50_us	       864.0 p95_us	       957.0 p99_us	  128963 B/op	      65 allocs/op
+BenchmarkLatency_StdioRoundtrip/50step_10assert          	   10000	    606439 ns/op	       583.0 p50_us	       860.0 p95_us	       954.0 p99_us	  128962 B/op	      65 allocs/op
+BenchmarkLatency_StdioRoundtrip/50step_10assert          	    9988	    600937 ns/op	       582.0 p50_us	       810.0 p95_us	       940.0 p99_us	  128963 B/op	      65 allocs/op
+BenchmarkLatency_StdioRoundtrip/100step_10assert         	    3248	   1766253 ns/op	      1667 p50_us	      2204 p95_us	      2581 p99_us	  374875 B/op	      66 allocs/op
+BenchmarkLatency_StdioRoundtrip/100step_10assert         	    3430	   1752788 ns/op	      1671 p50_us	      2124 p95_us	      2204 p99_us	  374890 B/op	      66 allocs/op
+BenchmarkLatency_StdioRoundtrip/100step_10assert         	    3403	   1751502 ns/op	      1670 p50_us	      2107 p95_us	      2182 p99_us	  374878 B/op	      66 allocs/op
+BenchmarkLatency_StdioRoundtrip/100step_10assert         	    3391	   1752807 ns/op	      1672 p50_us	      2112 p95_us	      2183 p99_us	  374878 B/op	      66 allocs/op
+BenchmarkLatency_StdioRoundtrip/100step_10assert         	    3380	   1757802 ns/op	      1675 p50_us	      2126 p95_us	      2209 p99_us	  374878 B/op	      66 allocs/op
+BenchmarkLatency_StdioRoundtrip/500step_20assert         	     369	  15820968 ns/op	     15631 p50_us	     16998 p95_us	     17999 p99_us	 4402517 B/op	     102 allocs/op
+BenchmarkLatency_StdioRoundtrip/500step_20assert         	     379	  15717613 ns/op	     15625 p50_us	     16073 p95_us	     17609 p99_us	 4402525 B/op	     103 allocs/op
+BenchmarkLatency_StdioRoundtrip/500step_20assert         	     381	  15694609 ns/op	     15620 p50_us	     16093 p95_us	     17105 p99_us	 4402525 B/op	     103 allocs/op
+BenchmarkLatency_StdioRoundtrip/500step_20assert         	     379	  15737071 ns/op	     15666 p50_us	     16031 p95_us	     17161 p99_us	 4402525 B/op	     103 allocs/op
+BenchmarkLatency_StdioRoundtrip/500step_20assert         	     380	  15738237 ns/op	     15709 p50_us	     15910 p95_us	     16574 p99_us	 4402525 B/op	     103 allocs/op
+PASS
+ok  	github.com/attest-framework/attest-bench/engine/internal/protocol	1135.781s
