@@ -11,9 +11,10 @@ import (
 type TraceSize int
 
 const (
-	Small  TraceSize = iota // ~1 KB : 3–5 steps, 1–2 tool calls
-	Medium                  // ~50 KB : 20–50 steps, 10–20 tool calls
-	Large                   // ~500 KB : 100–200 steps, 50–100 tool calls
+	Small  TraceSize = iota // ~5 KB : 10 steps
+	Medium                  // ~25 KB : 50 steps
+	Large                   // ~60 KB : 100 steps
+	XL                      // ~250 KB : 500 steps
 )
 
 var toolNames = []string{
@@ -44,9 +45,10 @@ type sizeParams struct {
 }
 
 var sizeConfig = map[TraceSize]sizeParams{
-	Small:  {3, 5, 1, 2, 0},
-	Medium: {20, 50, 1, 2, 8},
-	Large:  {100, 200, 1, 2, 30},
+	Small:  {10, 10, 1, 2, 1},   // exactly 10 steps, target ~5KB
+	Medium: {50, 50, 1, 2, 4},   // exactly 50 steps, target ~25KB
+	Large:  {100, 100, 1, 2, 8}, // exactly 100 steps, target ~60KB
+	XL:     {500, 500, 1, 2, 20}, // exactly 500 steps, target ~250KB
 }
 
 // GenerateSyntheticTrace produces a deterministic *Trace for the given seed
@@ -54,8 +56,37 @@ var sizeConfig = map[TraceSize]sizeParams{
 // bit-for-bit identical results.
 func GenerateSyntheticTrace(seed int64, size TraceSize) *Trace {
 	rng := rand.New(rand.NewSource(seed)) //nolint:gosec // deterministic, not crypto
-
 	p := sizeConfig[size]
+	return generateTrace(rng, p)
+}
+
+// GenerateSyntheticTraceN produces a deterministic *Trace with exactly numSteps steps.
+// It uses the nearest size class for padding parameters but overrides step counts.
+func GenerateSyntheticTraceN(seed int64, numSteps int) *Trace {
+	rng := rand.New(rand.NewSource(seed)) //nolint:gosec // deterministic, not crypto
+
+	// Select padding from nearest size class.
+	var p sizeParams
+	switch {
+	case numSteps <= 25:
+		p = sizeConfig[Small]
+	case numSteps <= 75:
+		p = sizeConfig[Medium]
+	case numSteps <= 250:
+		p = sizeConfig[Large]
+	default:
+		p = sizeConfig[XL]
+	}
+	// Override step counts to exact value.
+	p.minSteps = numSteps
+	p.maxSteps = numSteps
+
+	return generateTrace(rng, p)
+}
+
+// generateTrace is the shared core that both GenerateSyntheticTrace and
+// GenerateSyntheticTraceN delegate to.
+func generateTrace(rng *rand.Rand, p sizeParams) *Trace {
 	numSteps := p.minSteps + rng.Intn(p.maxSteps-p.minSteps+1)
 
 	traceID := randomID(rng, "trace")
@@ -147,8 +178,7 @@ func GenerateSyntheticTrace(seed int64, size TraceSize) *Trace {
 		Steps: steps,
 		Metadata: map[string]any{
 			"generator": "synthetic",
-			"seed":      seed,
-			"size":      int(size),
+			"seed":      0, // seed not available in generateTrace; set by caller if needed
 			"version":   "1.0",
 		},
 	}
@@ -181,6 +211,95 @@ func GenerateSyntheticBatchRequest(seed int64, size TraceSize) []byte {
 		panic(fmt.Sprintf("synthetic: marshal failed: %v", err))
 	}
 	return b
+}
+
+// GenerateEvaluateBatchRequest wraps a generated trace and synthetic assertions
+// in a JSON-RPC 2.0 evaluate_batch request envelope.
+func GenerateEvaluateBatchRequest(seed int64, numSteps, numAssertions int) []byte {
+	tr := GenerateSyntheticTraceN(seed, numSteps)
+	rng := rand.New(rand.NewSource(seed + 1)) //nolint:gosec // deterministic, not crypto
+
+	assertionTypes := []string{"schema", "constraint", "ordering", "content"}
+	assertions := make([]map[string]any, numAssertions)
+	for i := range assertions {
+		assertions[i] = map[string]any{
+			"assertion_id": fmt.Sprintf("assert-%04d", i),
+			"type":         assertionTypes[rng.Intn(len(assertionTypes))],
+			"level":        1 + rng.Intn(4),
+			"parameters":   map[string]any{},
+		}
+	}
+
+	traceJSON, err := json.Marshal(tr)
+	if err != nil {
+		panic(fmt.Sprintf("synthetic: marshal trace failed: %v", err))
+	}
+
+	type request struct {
+		JSONRPC string         `json:"jsonrpc"`
+		Method  string         `json:"method"`
+		Params  map[string]any `json:"params"`
+		ID      int            `json:"id"`
+	}
+
+	req := request{
+		JSONRPC: "2.0",
+		Method:  "evaluate_batch",
+		Params: map[string]any{
+			"trace":      json.RawMessage(traceJSON),
+			"assertions": assertions,
+		},
+		ID: 1,
+	}
+
+	b, err := json.Marshal(req)
+	if err != nil {
+		panic(fmt.Sprintf("synthetic: marshal request failed: %v", err))
+	}
+	return b
+}
+
+// GenerateInitializeRequest returns a JSON-RPC initialize request.
+func GenerateInitializeRequest(id int) []byte {
+	type request struct {
+		JSONRPC string         `json:"jsonrpc"`
+		Method  string         `json:"method"`
+		Params  map[string]any `json:"params"`
+		ID      int            `json:"id"`
+	}
+	req := request{
+		JSONRPC: "2.0",
+		Method:  "initialize",
+		Params: map[string]any{
+			"sdk_version":  "1.0.0",
+			"sdk_language": "go",
+		},
+		ID: id,
+	}
+	b, err := json.Marshal(req)
+	if err != nil {
+		panic(fmt.Sprintf("synthetic: marshal init request failed: %v", err))
+	}
+	return append(b, '\n')
+}
+
+// GenerateShutdownRequest returns a JSON-RPC shutdown request.
+func GenerateShutdownRequest(id int) []byte {
+	type request struct {
+		JSONRPC string `json:"jsonrpc"`
+		Method  string `json:"method"`
+		ID      int    `json:"id"`
+	}
+	req := request{
+		JSONRPC: "2.0",
+		Method:  "shutdown",
+		ID:      id,
+	}
+	b, err := json.Marshal(req)
+	if err != nil {
+		panic(fmt.Sprintf("synthetic: marshal shutdown request failed: %v", err))
+	}
+	return append(b, '\n')
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────

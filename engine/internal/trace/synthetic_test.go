@@ -2,6 +2,7 @@ package trace
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 )
 
@@ -14,9 +15,10 @@ func TestSyntheticTraceSize(t *testing.T) {
 		maxSize int
 		label   string
 	}{
-		{Small, 500, 2048, "Small"},
-		{Medium, 30 * 1024, 80 * 1024, "Medium"},
-		{Large, 300 * 1024, 700 * 1024, "Large"},
+		{Small, 3000, 8000, "Small"},
+		{Medium, 15000, 40000, "Medium"},
+		{Large, 40000, 150000, "Large"},
+		{XL, 150000, 1200000, "XL"},
 	}
 
 	for _, tc := range cases {
@@ -35,7 +37,7 @@ func TestSyntheticTraceSize(t *testing.T) {
 // TestSyntheticTraceDeterminism verifies that the same seed + size always
 // produces byte-identical output.
 func TestSyntheticTraceDeterminism(t *testing.T) {
-	sizes := []TraceSize{Small, Medium, Large}
+	sizes := []TraceSize{Small, Medium, Large, XL}
 	seeds := []int64{0, 1, 12345, -999, 1<<32 - 1}
 
 	for _, size := range sizes {
@@ -59,6 +61,7 @@ func TestSyntheticTraceStructure(t *testing.T) {
 		{Small, "Small"},
 		{Medium, "Medium"},
 		{Large, "Large"},
+		{XL, "XL"},
 	}
 
 	for _, tc := range sizes {
@@ -168,5 +171,35 @@ func TestSyntheticBatchRequest(t *testing.T) {
 	// id must be numeric (JSON numbers decode as float64).
 	if _, ok := raw["id"].(float64); !ok {
 		t.Errorf("id is not a number: %T %v", raw["id"], raw["id"])
+	}
+}
+
+// TestGenerateSyntheticTraceN verifies exact step count control.
+func TestGenerateSyntheticTraceN(t *testing.T) {
+	counts := []int{10, 50, 100, 250, 500, 1000}
+	for _, n := range counts {
+		t.Run(fmt.Sprintf("%d_steps", n), func(t *testing.T) {
+			tr := GenerateSyntheticTraceN(42, n)
+			if len(tr.Steps) != n {
+				t.Errorf("expected %d steps, got %d", n, len(tr.Steps))
+			}
+		})
+	}
+}
+
+// TestEvaluateBatchRequest verifies the evaluate_batch JSON-RPC envelope.
+func TestEvaluateBatchRequest(t *testing.T) {
+	b := GenerateEvaluateBatchRequest(42, 10, 5)
+	var raw map[string]any
+	if err := json.Unmarshal(b, &raw); err != nil {
+		t.Fatalf("not valid JSON: %v", err)
+	}
+	if got := raw["method"].(string); got != "evaluate_batch" {
+		t.Errorf("method: want evaluate_batch, got %q", got)
+	}
+	params := raw["params"].(map[string]any)
+	assertions := params["assertions"].([]any)
+	if len(assertions) != 5 {
+		t.Errorf("expected 5 assertions, got %d", len(assertions))
 	}
 }
