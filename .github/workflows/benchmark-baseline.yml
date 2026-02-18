@@ -1,0 +1,57 @@
+name: CI Benchmark Baseline
+
+on: workflow_dispatch
+
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build engine binary
+        run: |
+          CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o bin/attest-engine ./engine/cmd/attest-engine
+
+      - name: Create results directory
+        run: mkdir -p results/baselines
+
+      - name: Run full benchmark suite
+        working-directory: engine
+        run: |
+          go test ./internal/protocol/ \
+            -run='^$' \
+            -bench=. \
+            -benchmem \
+            -benchtime=5s \
+            -count=5 \
+            -cpu=1 \
+            -timeout=30m \
+            | tee ../results/baselines/ci-linux-amd64.txt
+
+      - name: Install benchstat
+        run: go install golang.org/x/perf/cmd/benchstat@latest
+
+      - name: Compare against M1 Pro baseline
+        continue-on-error: true
+        run: |
+          if [[ -f results/baselines/2026-02-18-m1pro-jsonrpc-recal.txt ]]; then
+            benchstat results/baselines/2026-02-18-m1pro-jsonrpc-recal.txt \
+                      results/baselines/ci-linux-amd64.txt
+          else
+            echo "No M1 Pro baseline found — skipping comparison"
+          fi
+
+      - name: Upload baseline results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-baseline-linux
+          path: results/baselines/ci-linux-amd64.txt
