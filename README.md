@@ -18,14 +18,13 @@ This runs the complete benchmark suite with synthetic traces and reports results
 
 ## Go/No-Go Criteria
 
-| Benchmark          | Metric       | Target  | Actual (M1 Pro) | Status |
-| ------------------ | ------------ | ------- | --------------- | ------ |
-| **Medium traces**  | p50 latency  | < 20ms  | 0.45ms          | PASS   |
-| **Large traces**   | p50 latency  | < 100ms | 8.5ms           | PASS   |
-| **Serialization**  | CPU overhead | < 10%   | ~66%\*          | PASS   |
-| **Engine startup** | latency      | < 10ms  | 3.3ms           | PASS   |
-
-\*Serialization overhead = serialization time / total stdio roundtrip time. Medium: 305µs / 453µs ≈ 67%. This is expected — serialization dominates the in-process path. The metric that matters for the go/no-go gate is absolute latency, where medium traces complete in <1ms.
+| Benchmark | Steps | Assertions | Target | Hard Ceiling | Actual | Status |
+|-----------|-------|------------|--------|-------------|--------|--------|
+| Small EvaluateBatch | 10 | 5 | <3ms | 5ms | 0.07ms | PASS |
+| Medium EvaluateBatch | 50 | 10 | <5ms | 10ms | 0.41ms | PASS |
+| Large EvaluateBatch | 100 | 10 | <5ms | 10ms | 1.19ms | PASS |
+| XL EvaluateBatch | 500 | 20 | <15ms | 30ms | 10.58ms | PASS |
+| Engine cold start | — | — | <500ms | 1000ms | 3.19ms | PASS |
 
 ## Project Structure
 
@@ -40,12 +39,18 @@ This runs the complete benchmark suite with synthetic traces and reports results
 ## Usage
 
 ```bash
-make bench-all                    # Full suite, saves timestamped results
+make bench-full                   # Full suite with percentiles, saves timestamped results
+make bench-all                    # Legacy: full suite, saves timestamped results
 make bench-serial                 # Serialization benchmarks only
 make bench-protocol               # Stdio roundtrip benchmarks only
 make bench-startup                # Engine cold start benchmarks only
-make compare BASELINE=baselines/2026-02-18-m1pro-jsonrpc.txt CURRENT=bench-XXXXX.txt
-make report CURRENT=bench-XXXXX.txt
+make bench-init                   # Initialize method benchmarks
+make bench-shutdown               # Shutdown method benchmarks
+make bench-subprocess             # Subprocess lifecycle roundtrip
+make bench-concurrent             # Concurrent session contention test
+make bench-scaling                # Serialization scaling across step counts
+make bench-latency                # Percentile latency collection (p50/p95/p99)
+make bench-report                 # Generate structured markdown report from latest results
 ```
 
 ## Specification
