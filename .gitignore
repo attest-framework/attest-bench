@@ -17,6 +17,12 @@ coverage.*
 *.coverprofile
 profile.cov
 
+# Profiling artifacts (pprof)
+prof/
+*.mem
+*.cpu
+*-allocs.txt
+
 # Dependency directories (remove the comment below to include it)
 # vendor/
 
