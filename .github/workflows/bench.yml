@@ -1,0 +1,138 @@
+name: Benchmark
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  benchmark:
+    name: Run benchmarks
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          path: pr
+
+      - name: Checkout base branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.event.before }}
+          path: base
+        if: github.event_name == 'pull_request'
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: pr/go.mod
+          cache: true
+
+      - name: Install benchstat
+        run: go install golang.org/x/perf/cmd/benchstat@latest
+
+      - name: Build engine (PR)
+        working-directory: pr
+        run: |
+          CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o bin/attest-engine ./engine/cmd/attest-engine
+
+      - name: Run benchmarks (PR)
+        working-directory: pr/engine
+        run: |
+          go test ./internal/protocol/ \
+            -run='^$' \
+            -bench=. \
+            -benchtime=3s \
+            -count=10 \
+            -cpu=1 \
+            -benchmem \
+            | tee ../results/bench-pr.txt
+
+      - name: Build engine (base)
+        working-directory: base
+        if: github.event_name == 'pull_request'
+        run: |
+          CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o bin/attest-engine ./engine/cmd/attest-engine
+
+      - name: Run benchmarks (base)
+        working-directory: base/engine
+        if: github.event_name == 'pull_request'
+        run: |
+          mkdir -p ../results
+          go test ./internal/protocol/ \
+            -run='^$' \
+            -bench=. \
+            -benchtime=3s \
+            -count=10 \
+            -cpu=1 \
+            -benchmem \
+            | tee ../results/bench-base.txt
+
+      - name: Compare with benchstat
+        id: benchstat
+        if: github.event_name == 'pull_request'
+        run: |
+          OUTPUT=$(benchstat base/results/bench-base.txt pr/results/bench-pr.txt 2>&1)
+          echo "${OUTPUT}"
+          {
+            echo 'result<<EOF'
+            echo "${OUTPUT}"
+            echo 'EOF'
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Comment PR with results
+        uses: actions/github-script@v7
+        if: github.event_name == 'pull_request'
+        with:
+          script: |
+            const body = `## Benchmark Results
+
+            \`\`\`
+            ${{ steps.benchstat.outputs.result }}
+            \`\`\`
+
+            _Baseline: \`${{ github.event.pull_request.base.sha }}\` — PR: \`${{ github.event.pull_request.head.sha }}\`_`;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const existing = comments.find(c =>
+              c.user.type === 'Bot' && c.body.startsWith('## Benchmark Results')
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+      - name: Upload PR benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-results-pr
+          path: pr/results/bench-pr.txt
+
+      - name: Upload base benchmark results
+        uses: actions/upload-artifact@v4
+        if: github.event_name == 'pull_request'
+        with:
+          name: bench-results-base
+          path: base/results/bench-base.txt
