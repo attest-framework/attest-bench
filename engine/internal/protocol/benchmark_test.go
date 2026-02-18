@@ -3,30 +3,33 @@ package protocol
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/attest-framework/attest-bench/engine/internal/trace"
 )
 
-// BenchmarkSerialization measures marshal+unmarshal round-trip cost for each trace size.
+// BenchmarkSerialization measures marshal+unmarshal round-trip cost for spec step counts.
 func BenchmarkSerialization(b *testing.B) {
 	sizes := []struct {
-		name string
-		size trace.TraceSize
+		name    string
+		steps   int
+		asserts int
 	}{
-		{"small", trace.Small},
-		{"medium", trace.Medium},
-		{"large", trace.Large},
+		{"10step_5assert", 10, 5},
+		{"50step_10assert", 50, 10},
+		{"100step_10assert", 100, 10},
+		{"500step_20assert", 500, 20},
 	}
-
 	for _, tc := range sizes {
 		b.Run(tc.name, func(b *testing.B) {
 			b.ReportAllocs()
-			raw := trace.GenerateSyntheticBatchRequest(42, tc.size)
+			raw := trace.GenerateEvaluateBatchRequest(42, tc.steps, tc.asserts)
 			b.SetBytes(int64(len(raw)))
 			for b.Loop() {
 				req, err := UnmarshalRequest(raw)
@@ -42,59 +45,55 @@ func BenchmarkSerialization(b *testing.B) {
 	}
 }
 
-// BenchmarkStdioRoundtrip measures end-to-end latency through Serve via io.Pipe.
+// BenchmarkStdioRoundtrip measures end-to-end evaluate_batch latency through Serve via io.Pipe.
 func BenchmarkStdioRoundtrip(b *testing.B) {
 	sizes := []struct {
-		name string
-		size trace.TraceSize
+		name    string
+		steps   int
+		asserts int
 	}{
-		{"small", trace.Small},
-		{"medium", trace.Medium},
-		{"large", trace.Large},
+		{"10step_5assert", 10, 5},
+		{"50step_10assert", 50, 10},
+		{"100step_10assert", 100, 10},
+		{"500step_20assert", 500, 20},
 	}
 
 	for _, tc := range sizes {
 		b.Run(tc.name, func(b *testing.B) {
 			b.ReportAllocs()
 
-			// Set up bidirectional pipes: client <-> server.
-			clientR, serverW := io.Pipe() // server writes → client reads
-			serverR, clientW := io.Pipe() // client writes → server reads
+			clientR, serverW := io.Pipe()
+			serverR, clientW := io.Pipe()
 
 			done := make(chan error, 1)
 			go func() {
 				done <- Serve(serverR, serverW)
 			}()
 
-			// Read the ready signal before benchmarking.
 			br := bufio.NewReader(clientR)
-			readySig, err := br.ReadBytes('\n')
-			if err != nil {
+			// Read ready signal.
+			if _, err := br.ReadBytes('\n'); err != nil {
 				b.Fatalf("read ready signal: %v", err)
 			}
-			var ready map[string]bool
-			if err := json.Unmarshal(readySig[:len(readySig)-1], &ready); err != nil {
-				b.Fatalf("unmarshal ready signal: %v", err)
+
+			// Send initialize (outside timer).
+			initReq := trace.GenerateInitializeRequest(0)
+			if _, err := clientW.Write(initReq); err != nil {
+				b.Fatalf("write init: %v", err)
 			}
-			if !ready["ready"] {
-				b.Fatal("server did not send ready=true")
+			if _, err := br.ReadBytes('\n'); err != nil {
+				b.Fatalf("read init response: %v", err)
 			}
 
-			raw := trace.GenerateSyntheticBatchRequest(42, tc.size)
+			// GenerateEvaluateBatchRequest returns raw JSON without trailing newline.
+			raw := trace.GenerateEvaluateBatchRequest(42, tc.steps, tc.asserts)
 			b.SetBytes(int64(len(raw)))
 
-			// Pre-unmarshal the request once; we only benchmark the Serve roundtrip.
-			req, err := UnmarshalRequest(raw)
-			if err != nil {
-				b.Fatalf("unmarshal request: %v", err)
-			}
-
 			for b.Loop() {
-				wire, err := MarshalRequest(req)
-				if err != nil {
+				if _, err := clientW.Write(raw); err != nil {
 					b.Fatal(err)
 				}
-				if _, err := clientW.Write(wire); err != nil {
+				if _, err := clientW.Write([]byte("\n")); err != nil {
 					b.Fatal(err)
 				}
 				if _, err := br.ReadBytes('\n'); err != nil {
@@ -102,20 +101,125 @@ func BenchmarkStdioRoundtrip(b *testing.B) {
 				}
 			}
 
-			clientW.Close()
+			// Send shutdown.
+			shutReq := trace.GenerateShutdownRequest(999)
+			clientW.Write(shutReq) //nolint:errcheck // Serve may have already exited
+			br.ReadBytes('\n')     //nolint:errcheck // read shutdown response
 			<-done
 			clientR.Close()
+			clientW.Close()
 		})
 	}
 }
 
-// BenchmarkEngineStartup measures time from exec to receiving the ready signal.
+// BenchmarkInitialize measures the cost of a full initialize handshake.
+func BenchmarkInitialize(b *testing.B) {
+	b.ReportAllocs()
+	for b.Loop() {
+		clientR, serverW := io.Pipe()
+		serverR, clientW := io.Pipe()
+		done := make(chan error, 1)
+		go func() { done <- Serve(serverR, serverW) }()
+		br := bufio.NewReader(clientR)
+		br.ReadBytes('\n') //nolint:errcheck // ready signal
+
+		initReq := trace.GenerateInitializeRequest(1)
+		clientW.Write(initReq) //nolint:errcheck
+		br.ReadBytes('\n')     //nolint:errcheck // init response
+
+		shutReq := trace.GenerateShutdownRequest(2)
+		clientW.Write(shutReq) //nolint:errcheck
+		br.ReadBytes('\n')     //nolint:errcheck
+		<-done
+		clientR.Close()
+		clientW.Close()
+	}
+}
+
+// BenchmarkShutdown measures the full lifecycle cost with focus on shutdown.
+func BenchmarkShutdown(b *testing.B) {
+	b.ReportAllocs()
+	for b.Loop() {
+		clientR, serverW := io.Pipe()
+		serverR, clientW := io.Pipe()
+		done := make(chan error, 1)
+		go func() { done <- Serve(serverR, serverW) }()
+		br := bufio.NewReader(clientR)
+		br.ReadBytes('\n') //nolint:errcheck // ready
+
+		initReq := trace.GenerateInitializeRequest(1)
+		clientW.Write(initReq) //nolint:errcheck
+		br.ReadBytes('\n')     //nolint:errcheck // init response
+
+		shutReq := trace.GenerateShutdownRequest(2)
+		clientW.Write(shutReq) //nolint:errcheck
+		br.ReadBytes('\n')     //nolint:errcheck // shutdown response
+		<-done
+		clientR.Close()
+		clientW.Close()
+	}
+}
+
+// BenchmarkSubprocessRoundtrip measures full lifecycle through a real subprocess.
+func BenchmarkSubprocessRoundtrip(b *testing.B) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		b.Fatalf("getwd: %v", err)
+	}
+	binPath := filepath.Join(cwd, "..", "..", "..", "bin", "attest-engine")
+
+	sizes := []struct {
+		name    string
+		steps   int
+		asserts int
+	}{
+		{"10step_5assert", 10, 5},
+		{"100step_10assert", 100, 10},
+	}
+
+	for _, tc := range sizes {
+		b.Run(tc.name, func(b *testing.B) {
+			b.ReportAllocs()
+			raw := trace.GenerateEvaluateBatchRequest(42, tc.steps, tc.asserts)
+
+			for b.Loop() {
+				cmd := exec.Command(binPath, "serve")
+				stdin, err := cmd.StdinPipe()
+				if err != nil {
+					b.Fatalf("stdin pipe: %v", err)
+				}
+				stdout, err := cmd.StdoutPipe()
+				if err != nil {
+					b.Fatalf("stdout pipe: %v", err)
+				}
+				if err := cmd.Start(); err != nil {
+					b.Fatalf("start engine: %v (build it first with: make engine)", err)
+				}
+
+				br := bufio.NewReader(stdout)
+				br.ReadBytes('\n') //nolint:errcheck // ready signal
+
+				// Initialize.
+				stdin.Write(trace.GenerateInitializeRequest(1)) //nolint:errcheck
+				br.ReadBytes('\n')                              //nolint:errcheck
+
+				// EvaluateBatch.
+				stdin.Write(raw)          //nolint:errcheck
+				stdin.Write([]byte("\n")) //nolint:errcheck
+				br.ReadBytes('\n')        //nolint:errcheck
+
+				// Shutdown.
+				stdin.Write(trace.GenerateShutdownRequest(3)) //nolint:errcheck
+				br.ReadBytes('\n')                            //nolint:errcheck
+				cmd.Wait()                                    //nolint:errcheck
+			}
+		})
+	}
+}
+
+// BenchmarkEngineStartup measures cold start to first initialize response.
 func BenchmarkEngineStartup(b *testing.B) {
 	b.ReportAllocs()
-
-	// The test binary runs with CWD set to the package directory:
-	// .../attest-bench/engine/internal/protocol/
-	// The binary lives at .../attest-bench/bin/attest-engine
 	cwd, err := os.Getwd()
 	if err != nil {
 		b.Fatalf("getwd: %v", err)
@@ -124,6 +228,10 @@ func BenchmarkEngineStartup(b *testing.B) {
 
 	for b.Loop() {
 		cmd := exec.Command(binPath, "serve")
+		stdin, err := cmd.StdinPipe()
+		if err != nil {
+			b.Fatalf("stdin pipe: %v", err)
+		}
 		stdout, err := cmd.StdoutPipe()
 		if err != nil {
 			b.Fatalf("stdout pipe: %v", err)
@@ -133,27 +241,110 @@ func BenchmarkEngineStartup(b *testing.B) {
 		}
 
 		br := bufio.NewReader(stdout)
-		line, err := br.ReadBytes('\n')
-		if err != nil {
+		br.ReadBytes('\n') //nolint:errcheck // ready signal
+
+		// Send initialize and measure to response.
+		stdin.Write(trace.GenerateInitializeRequest(1)) //nolint:errcheck
+		line, readErr := br.ReadBytes('\n')
+		if readErr != nil {
 			cmd.Process.Kill() //nolint:errcheck
 			cmd.Wait()         //nolint:errcheck
-			b.Fatalf("read ready signal: %v", err)
+			b.Fatalf("read init response: %v", readErr)
 		}
 
-		var ready map[string]bool
-		if err := json.Unmarshal(line[:len(line)-1], &ready); err != nil {
+		var resp Response
+		if err := json.Unmarshal(line[:len(line)-1], &resp); err != nil {
 			cmd.Process.Kill() //nolint:errcheck
 			cmd.Wait()         //nolint:errcheck
-			b.Fatalf("unmarshal ready: %v", err)
-		}
-		if !ready["ready"] {
-			cmd.Process.Kill() //nolint:errcheck
-			cmd.Wait()         //nolint:errcheck
-			b.Fatalf("expected ready=true, got %v", ready)
+			b.Fatalf("unmarshal init response: %v", err)
 		}
 
-		// Shut down cleanly via stdin EOF.
-		cmd.Process.Kill() //nolint:errcheck
-		cmd.Wait()         //nolint:errcheck
+		// Clean shutdown.
+		stdin.Write(trace.GenerateShutdownRequest(2)) //nolint:errcheck
+		br.ReadBytes('\n')                            //nolint:errcheck
+		cmd.Wait()                                    //nolint:errcheck
+	}
+}
+
+// BenchmarkConcurrentSessions runs two in-process Serve instances concurrently
+// with evaluate_batch requests.
+func BenchmarkConcurrentSessions(b *testing.B) {
+	b.ReportAllocs()
+
+	raw := trace.GenerateEvaluateBatchRequest(42, 50, 10) // medium size
+
+	for b.Loop() {
+		type session struct {
+			clientR *io.PipeReader
+			clientW *io.PipeWriter
+			br      *bufio.Reader
+			done    chan error
+		}
+
+		startSession := func() session {
+			clientR, serverW := io.Pipe()
+			serverR, clientW := io.Pipe()
+			done := make(chan error, 1)
+			go func() { done <- Serve(serverR, serverW) }()
+			br := bufio.NewReader(clientR)
+			br.ReadBytes('\n')                              //nolint:errcheck // ready
+			clientW.Write(trace.GenerateInitializeRequest(1)) //nolint:errcheck
+			br.ReadBytes('\n')                              //nolint:errcheck // init response
+			return session{clientR: clientR, clientW: clientW, br: br, done: done}
+		}
+
+		s1 := startSession()
+		s2 := startSession()
+
+		var wg sync.WaitGroup
+		wg.Add(2)
+
+		doRequests := func(s session) {
+			defer wg.Done()
+			for i := 0; i < 10; i++ {
+				s.clientW.Write(raw)          //nolint:errcheck
+				s.clientW.Write([]byte("\n")) //nolint:errcheck
+				s.br.ReadBytes('\n')          //nolint:errcheck
+			}
+		}
+
+		go doRequests(s1)
+		go doRequests(s2)
+		wg.Wait()
+
+		// Shutdown both sessions.
+		for _, s := range []session{s1, s2} {
+			s.clientW.Write(trace.GenerateShutdownRequest(999)) //nolint:errcheck
+			s.br.ReadBytes('\n')                                //nolint:errcheck
+			<-s.done
+			s.clientR.Close()
+			s.clientW.Close()
+		}
+	}
+}
+
+// BenchmarkSerializationScaling measures json round-trip cost across increasing step counts.
+func BenchmarkSerializationScaling(b *testing.B) {
+	steps := []int{10, 50, 100, 250, 500, 1000}
+	for _, n := range steps {
+		b.Run(fmt.Sprintf("%d_steps", n), func(b *testing.B) {
+			b.ReportAllocs()
+			tr := trace.GenerateSyntheticTraceN(42, n)
+			raw, err := json.Marshal(tr)
+			if err != nil {
+				b.Fatal(err)
+			}
+			b.SetBytes(int64(len(raw)))
+			b.ReportMetric(float64(len(raw))/1024.0, "json_kb")
+			for b.Loop() {
+				var out trace.Trace
+				if err := json.Unmarshal(raw, &out); err != nil {
+					b.Fatal(err)
+				}
+				if _, err := json.Marshal(&out); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
 	}
 }

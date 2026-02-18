@@ -4,7 +4,7 @@ BENCH_PKG  := ./internal/protocol/
 BENCH_TIME := -benchtime=5s
 BENCH_RUN  := -count=10 -cpu=1 -benchmem
 
-.PHONY: engine engine-profile bench-serial bench-protocol bench-startup bench-all compare report clean
+.PHONY: engine engine-profile bench-serial bench-protocol bench-startup bench-all bench-init bench-shutdown bench-subprocess bench-concurrent bench-scaling bench-latency bench-full bench-report compare report clean
 
 engine:
 	CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o $(BINARY) $(CMD)
@@ -23,6 +23,31 @@ bench-startup: engine
 
 bench-all: engine
 	cd engine && go test $(BENCH_PKG) -run='^$$' -bench=. $(BENCH_TIME) $(BENCH_RUN) | tee ../results/bench-$$(date +%Y%m%d-%H%M%S).txt
+
+bench-init:
+	cd engine && go test $(BENCH_PKG) -run='^$$' -bench=BenchmarkInitialize $(BENCH_TIME) $(BENCH_RUN)
+
+bench-shutdown:
+	cd engine && go test $(BENCH_PKG) -run='^$$' -bench=BenchmarkShutdown $(BENCH_TIME) $(BENCH_RUN)
+
+bench-subprocess: engine
+	cd engine && go test $(BENCH_PKG) -run='^$$' -bench=BenchmarkSubprocessRoundtrip $(BENCH_TIME) $(BENCH_RUN)
+
+bench-concurrent: engine
+	cd engine && go test $(BENCH_PKG) -run='^$$' -bench=BenchmarkConcurrentSessions $(BENCH_TIME) $(BENCH_RUN)
+
+bench-scaling:
+	cd engine && go test $(BENCH_PKG) -run='^$$' -bench=BenchmarkSerializationScaling $(BENCH_TIME) $(BENCH_RUN)
+
+bench-latency: engine
+	cd engine && go test $(BENCH_PKG) -run='^$$' -bench=BenchmarkLatency -benchtime=10s -count=5 -cpu=1 -benchmem
+
+bench-full: engine
+	cd engine && go test $(BENCH_PKG) -run='^$$' -bench=. -benchtime=10s -count=5 -cpu=1 -benchmem \
+		| tee ../results/bench-$$(date +%Y%m%d-%H%M%S).txt
+
+bench-report:
+	go run ./engine/cmd/bench-report $$(ls -t results/bench-*.txt | head -1)
 
 compare:
 	./scripts/compare.sh

@@ -11,19 +11,22 @@ Validate that JSON-RPC over stdio meets latency requirements for the Attest SDK 
 The benchmark harness contains a **minimal engine** — a message loop that accepts JSON-RPC requests over stdin, routes them to canned handlers, and writes responses to stdout. No actual trace processing occurs. This isolates protocol overhead from application logic.
 
 ```text
-                    ┌─────────────────────────┐
-  stdin ──────────► │  bufio.Reader (1MB)     │
-                    │  ReadBytes('\n')        │
-                    │  json.Unmarshal         │
-                    │  ┌───────────────────┐  │
-                    │  │ Route:            │  │
-                    │  │  trace.submit → ok│  │
-                    │  │  ping → pong      │  │
-                    │  └───────────────────┘  │
-                    │  json.Marshal           │
-                    │  bufio.Writer.Flush()   │
-  stdout ◄──────── │                          │
-                    └─────────────────────────┘
+                    ┌─────────────────────────────┐
+  stdin ──────────► │  bufio.Reader (1MB)         │
+                    │  ReadBytes('\n')            │
+                    │  json.Unmarshal             │
+                    │  ┌───────────────────────┐  │
+                    │  │ Route:                │  │
+                    │  │  initialize → result  │  │
+                    │  │  evaluate_batch → ok  │  │
+                    │  │  shutdown → exit      │  │
+                    │  │  trace.submit → ok    │  │
+                    │  │  ping → pong          │  │
+                    │  └───────────────────────┘  │
+                    │  json.Marshal               │
+                    │  bufio.Writer.Flush()       │
+  stdout ◄──────── │                              │
+                    └─────────────────────────────┘
 ```
 
 ### Message Framing
@@ -40,17 +43,16 @@ Newline-delimited JSON. Each line is one complete JSON-RPC 2.0 message. `encodin
 
 Traces are generated deterministically using `math/rand` with a fixed seed (42).
 
-| Size   | Steps   | Tool Calls | Approx. Bytes | Represents                |
-| ------ | ------- | ---------- | ------------- | ------------------------- |
-| Small  | 3-5     | 1-2        | ~1 KB         | Simple query, single tool |
-| Medium | 20-50   | 10-20      | ~50 KB        | Multi-step workflow       |
-| Large  | 100-200 | 50-100     | ~500 KB       | Complex agent session     |
-
-Sizes are estimates based on the Attest trace model (Step/ToolCall hierarchy). Calibrate against real traces once available.
+| Size   | Steps | Tool Calls | Approx. Bytes | Represents                |
+|--------|-------|------------|---------------|---------------------------|
+| Small  | 10    | 1-2        | ~5 KB         | Simple query, single tool |
+| Medium | 50    | 1-2        | ~25 KB        | Multi-step workflow       |
+| Large  | 100   | 1-2        | ~60 KB        | Complex agent session     |
+| XL     | 500   | 1-2        | ~250 KB       | Extended multi-agent run  |
 
 ## Benchmarks
 
-### BenchmarkSerialization/{small,medium,large}
+### BenchmarkSerialization/{10step_5assert,50step_10assert,100step_10assert,500step_20assert}
 
 **What it measures:** Pure JSON marshal/unmarshal cycle for a trace.submit request.
 
@@ -58,7 +60,7 @@ Sizes are estimates based on the Attest trace model (Step/ToolCall hierarchy). C
 
 **Purpose:** Establish codec overhead baseline. If serialization alone exceeds thresholds, the protocol choice is the bottleneck regardless of transport.
 
-### BenchmarkStdioRoundtrip/{small,medium,large}
+### BenchmarkStdioRoundtrip/{10step_5assert,50step_10assert,100step_10assert,500step_20assert}
 
 **What it measures:** Full protocol roundtrip through `io.Pipe` — write request, read response through the `Serve()` loop.
 
@@ -74,16 +76,63 @@ Sizes are estimates based on the Attest trace model (Step/ToolCall hierarchy). C
 
 **Purpose:** Validate subprocess startup overhead for SDK integration patterns where the engine is spawned per-session.
 
+### BenchmarkInitialize
+
+**What it measures:** Cold protocol initialization — start Serve, send initialize, read response.
+
+**How:** Per-iteration Serve start with io.Pipe, single initialize roundtrip, then shutdown.
+
+**Purpose:** Baseline for connection establishment overhead.
+
+### BenchmarkShutdown
+
+**What it measures:** Graceful shutdown latency — initialize then shutdown.
+
+**How:** Per-iteration Serve lifecycle: ready → initialize → shutdown → Serve returns.
+
+**Purpose:** Verify clean session teardown does not add measurable overhead.
+
+### BenchmarkSubprocessRoundtrip/{10step_5assert,100step_10assert}
+
+**What it measures:** Full lifecycle through OS process — spawn, initialize, evaluate_batch, shutdown, wait.
+
+**How:** `exec.Command("attest-engine", "serve")` with stdin/stdout pipes. Full protocol lifecycle per iteration.
+
+**Purpose:** Real-world subprocess integration latency. Captures OS overhead missing from in-process benchmarks.
+
+### BenchmarkConcurrentSessions
+
+**What it measures:** Contention between two independent engine sessions.
+
+**How:** Two in-process Serve instances on separate pipe pairs. Two goroutines send evaluate_batch requests concurrently (10 requests each).
+
+**Purpose:** Verify no unexpected contention. Each Serve instance is independent — no shared state.
+
+### BenchmarkSerializationScaling/{10,50,100,250,500,1000}_steps
+
+**What it measures:** JSON marshal/unmarshal cost as trace size increases.
+
+**How:** Generate trace with exact step count, marshal+unmarshal loop. Reports `json_kb` payload size.
+
+**Purpose:** Characterize serialization scaling for capacity planning.
+
+### BenchmarkLatency_StdioRoundtrip/{10step_5assert,50step_10assert,100step_10assert,500step_20assert}
+
+**What it measures:** Percentile latency distribution for protocol roundtrips.
+
+**How:** Same setup as BenchmarkStdioRoundtrip but records per-iteration `time.Duration`. Reports p50/p95/p99 via `b.ReportMetric`.
+
+**Purpose:** Tail latency characterization. Mean ns/op hides outliers — percentiles reveal worst-case behavior.
+
 ## Go/No-Go Criteria
 
-| Metric              | Threshold | Pivot Trigger |
-| ------------------- | --------- | ------------- |
-| Medium trace p50    | < 20ms    | > 30ms        |
-| Large trace p50     | < 100ms   | > 150ms       |
-| Serialization ratio | < 10%\*   | > 25%         |
-| Engine startup      | < 10ms    | > 15ms        |
-
-\*Serialization ratio = serialization time / stdio roundtrip time. Measures how much of the total latency is codec overhead vs transport overhead.
+| Metric | Target | Hard Ceiling | Pivot Trigger |
+|--------|--------|-------------|---------------|
+| Small (10-step) evaluate_batch p50 | < 3ms | 5ms | > 5ms |
+| Medium (50-step) evaluate_batch p50 | < 5ms | 10ms | > 10ms |
+| Large (100-step) evaluate_batch p50 | < 5ms | 10ms | > 10ms |
+| XL (500-step) evaluate_batch p50 | < 15ms | 30ms | > 30ms |
+| Engine cold start to initialize response | < 500ms | 1000ms | > 1000ms |
 
 **PASS:** All metrics below threshold. Proceed with JSON-RPC for Phase 1 SDK.
 
@@ -91,21 +140,53 @@ Sizes are estimates based on the Attest trace model (Step/ToolCall hierarchy). C
 
 ## Baseline Results
 
-### 2026-02-18 — M1 Pro (initial baseline)
+**Platform:** Apple M1 Pro, darwin/arm64, Go 1.25.0
+**Date:** 2026-02-18
+**Baseline file:** `results/baselines/2026-02-18-m1pro-jsonrpc-recal.txt`
 
-```text
-BenchmarkSerialization/small      ~21 µs/op    87 MB/s    4.2 KB/op   13 allocs
-BenchmarkSerialization/medium    ~305 µs/op   108 MB/s   64.6 KB/op   14 allocs
-BenchmarkSerialization/large    ~5.59 ms/op   116 MB/s    1.2 MB/op   16 allocs
-BenchmarkStdioRoundtrip/small    ~32 µs/op    57 MB/s    9.4 KB/op   37 allocs
-BenchmarkStdioRoundtrip/medium  ~453 µs/op    72 MB/s  130.0 KB/op   38 allocs
-BenchmarkStdioRoundtrip/large   ~8.5 ms/op    76 MB/s    2.5 MB/op   41 allocs
-BenchmarkEngineStartup          ~3.3 ms/op              16.2 KB/op   42 allocs
-```
+### Protocol Roundtrip (median, 5 runs, 10s each)
 
-**Verdict: PASS.** All metrics well below thresholds. Medium roundtrip 0.45ms vs 20ms target (44x headroom). Large roundtrip 8.5ms vs 100ms target (12x headroom). Startup 3.3ms vs 10ms target (3x headroom).
+| Benchmark | Steps | Assertions | Median | Target | Status |
+|-----------|-------|------------|--------|--------|--------|
+| StdioRoundtrip/10step | 10 | 5 | 0.07ms | <3ms | PASS |
+| StdioRoundtrip/50step | 50 | 10 | 0.41ms | <5ms | PASS |
+| StdioRoundtrip/100step | 100 | 10 | 1.19ms | <5ms | PASS |
+| StdioRoundtrip/500step | 500 | 20 | 10.58ms | <15ms | PASS |
+| EngineStartup | — | — | 3.19ms | <500ms | PASS |
 
-Full raw data: `results/baselines/2026-02-18-m1pro-jsonrpc.txt`
+### Percentile Latency (median of 5 runs)
+
+| Benchmark | p50 | p95 | p99 |
+|-----------|-----|-----|-----|
+| 10step/5assert | 65us | 75us | 165us |
+| 50step/10assert | 397us | 561us | 679us |
+| 100step/10assert | 1134us | 1450us | 1570us |
+| 500step/20assert | 10564us | 10851us | 11202us |
+
+### Serialization Scaling (median ns/op)
+
+| Steps | ns/op | MB/s |
+|-------|-------|------|
+| 10 | 54,160 | 95.31 |
+| 50 | 336,040 | 114.35 |
+| 100 | 896,470 | 129.19 |
+| 250 | 2,562,124 | 128.15 |
+| 500 | 7,213,754 | 153.31 |
+| 1000 | 14,473,271 | 151.56 |
+
+### Additional Benchmarks
+
+| Benchmark | Median ns/op |
+|-----------|-------------|
+| Initialize | 41,478 |
+| Shutdown | 41,573 |
+| SubprocessRoundtrip/10step | 3,334,820 |
+| SubprocessRoundtrip/100step | 4,603,868 |
+| ConcurrentSessions (2x10 req) | 8,452,916 |
+
+### Decision
+
+**Go/No-Go: PASS** — All metrics below target. Proceed with JSON-RPC for Phase 1 SDK.
 
 ## Running Benchmarks
 

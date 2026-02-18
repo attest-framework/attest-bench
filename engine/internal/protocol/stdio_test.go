@@ -225,6 +225,147 @@ func TestServeEOF(t *testing.T) {
 	clientR.Close()
 }
 
+// TestServeInitialize sends an initialize request and verifies the result.
+func TestServeInitialize(t *testing.T) {
+	clientW, clientR, done := serveSetup(t)
+
+	// Consume ready signal.
+	readLine(t, clientR)
+
+	params, _ := json.Marshal(InitializeParams{
+		SDKVersion:  "1.0.0",
+		SDKLanguage: "go",
+	})
+	req := &Request{
+		Jsonrpc: JSONRPCVersion,
+		Method:  "initialize",
+		Params:  json.RawMessage(params),
+		ID:      10,
+	}
+	sendRequest(t, clientW, req)
+
+	line := readLine(t, clientR)
+	resp, err := UnmarshalResponse(bytes.TrimRight(line, "\n"))
+	if err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if resp.Error != nil {
+		t.Fatalf("unexpected error: %v", resp.Error)
+	}
+	var result InitializeResult
+	if err := json.Unmarshal(resp.Result, &result); err != nil {
+		t.Fatalf("unmarshal result: %v", err)
+	}
+	if result.EngineVersion != "0.1.0" {
+		t.Errorf("expected EngineVersion=0.1.0, got %q", result.EngineVersion)
+	}
+	if !result.Compatible {
+		t.Errorf("expected Compatible=true, got false")
+	}
+	found := false
+	for _, c := range result.Capabilities {
+		if c == "evaluate_batch" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected capabilities to contain evaluate_batch, got %v", result.Capabilities)
+	}
+
+	clientW.Close()
+	<-done
+}
+
+// TestServeEvaluateBatch sends an evaluate_batch request with 3 assertions and verifies all pass.
+func TestServeEvaluateBatch(t *testing.T) {
+	clientW, clientR, done := serveSetup(t)
+
+	// Consume ready signal.
+	readLine(t, clientR)
+
+	batchParams := EvaluateBatchParams{
+		Trace: json.RawMessage("{}"),
+		Assertions: []Assertion{
+			{ID: "a1", Type: "schema", Level: 1, Parameters: json.RawMessage("{}")},
+			{ID: "a2", Type: "constraint", Level: 2, Parameters: json.RawMessage("{}")},
+			{ID: "a3", Type: "ordering", Level: 1, Parameters: json.RawMessage("{}")},
+		},
+	}
+	params, _ := json.Marshal(batchParams)
+	req := &Request{
+		Jsonrpc: JSONRPCVersion,
+		Method:  "evaluate_batch",
+		Params:  json.RawMessage(params),
+		ID:      11,
+	}
+	sendRequest(t, clientW, req)
+
+	line := readLine(t, clientR)
+	resp, err := UnmarshalResponse(bytes.TrimRight(line, "\n"))
+	if err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if resp.Error != nil {
+		t.Fatalf("unexpected error: %v", resp.Error)
+	}
+	var result EvaluateBatchResult
+	if err := json.Unmarshal(resp.Result, &result); err != nil {
+		t.Fatalf("unmarshal result: %v", err)
+	}
+	if len(result.Results) != 3 {
+		t.Fatalf("expected 3 results, got %d", len(result.Results))
+	}
+	for _, r := range result.Results {
+		if r.Status != "pass" {
+			t.Errorf("expected status=pass for %s, got %q", r.AssertionID, r.Status)
+		}
+	}
+
+	clientW.Close()
+	<-done
+}
+
+// TestServeShutdown sends a shutdown request and verifies Serve exits cleanly.
+func TestServeShutdown(t *testing.T) {
+	clientW, clientR, done := serveSetup(t)
+
+	// Consume ready signal.
+	readLine(t, clientR)
+
+	req := &Request{
+		Jsonrpc: JSONRPCVersion,
+		Method:  "shutdown",
+		ID:      12,
+	}
+	sendRequest(t, clientW, req)
+
+	line := readLine(t, clientR)
+	resp, err := UnmarshalResponse(bytes.TrimRight(line, "\n"))
+	if err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if resp.Error != nil {
+		t.Fatalf("unexpected error: %v", resp.Error)
+	}
+	var result ShutdownResult
+	if err := json.Unmarshal(resp.Result, &result); err != nil {
+		t.Fatalf("unmarshal result: %v", err)
+	}
+	if result.Status != "ok" {
+		t.Errorf("expected status=ok, got %q", result.Status)
+	}
+
+	// Serve should return nil without closing the writer.
+	serveErr := <-done
+	if serveErr != nil {
+		t.Errorf("expected Serve to return nil on shutdown, got %v", serveErr)
+	}
+
+	clientW.Close()
+	clientR.Close()
+}
+
 // TestMarshalUnmarshalRoundtrip verifies marshal/unmarshal symmetry for Request.
 func TestMarshalUnmarshalRoundtrip(t *testing.T) {
 	params, _ := json.Marshal(map[string]string{"key": "value"})
