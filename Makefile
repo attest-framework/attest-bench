@@ -4,7 +4,7 @@ BENCH_PKG  := ./internal/protocol/
 BENCH_TIME := -benchtime=5s
 BENCH_RUN  := -count=10 -cpu=1 -benchmem
 
-.PHONY: engine engine-profile bench-serial bench-protocol bench-startup bench-all bench-init bench-shutdown bench-subprocess bench-concurrent bench-scaling bench-latency bench-full bench-report compare report clean
+.PHONY: engine engine-profile bench-serial bench-protocol bench-startup bench-all bench-init bench-shutdown bench-subprocess bench-concurrent bench-concurrent-scaled bench-scaling bench-latency bench-sustained bench-codec bench-profile-allocs bench-full bench-report compare report clean
 
 engine:
 	CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o $(BINARY) $(CMD)
@@ -36,11 +36,28 @@ bench-subprocess: engine
 bench-concurrent: engine
 	cd engine && go test $(BENCH_PKG) -run='^$$' -bench=BenchmarkConcurrentSessions $(BENCH_TIME) $(BENCH_RUN)
 
+bench-concurrent-scaled: engine
+	cd engine && go test $(BENCH_PKG) -run='^$$' -bench=BenchmarkConcurrentSessions_Scaled $(BENCH_TIME) $(BENCH_RUN)
+
 bench-scaling:
 	cd engine && go test $(BENCH_PKG) -run='^$$' -bench=BenchmarkSerializationScaling $(BENCH_TIME) $(BENCH_RUN)
 
 bench-latency: engine
 	cd engine && go test $(BENCH_PKG) -run='^$$' -bench=BenchmarkLatency -benchtime=10s -count=5 -cpu=1 -benchmem
+
+bench-sustained:
+	cd engine && go test $(BENCH_PKG) -run='^$$' -bench=BenchmarkSustainedLoad $(BENCH_TIME) $(BENCH_RUN)
+
+bench-codec:
+	cd engine && go test $(BENCH_PKG) -run='^$$' -bench=BenchmarkCodecComparison $(BENCH_TIME) $(BENCH_RUN)
+
+bench-profile-allocs:
+	mkdir -p prof
+	cd engine && go test $(BENCH_PKG) -run='^$$' -bench=BenchmarkSerialization/500step -benchmem -memprofile=../prof/serial-500.mem -count=1 -benchtime=100x
+	cd engine && go test $(BENCH_PKG) -run='^$$' -bench=BenchmarkSerializationScaling/500_steps -benchmem -memprofile=../prof/scaling-500.mem -count=1 -benchtime=100x
+	go tool pprof -text -alloc_objects prof/serial-500.mem > prof/serial-500-allocs.txt
+	go tool pprof -text -alloc_objects prof/scaling-500.mem > prof/scaling-500-allocs.txt
+	@echo "Allocation profiles written to prof/"
 
 bench-full: engine
 	cd engine && go test $(BENCH_PKG) -run='^$$' -bench=. -benchtime=10s -count=5 -cpu=1 -benchmem \

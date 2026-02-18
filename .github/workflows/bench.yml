@@ -48,7 +48,7 @@ jobs:
       contents: read
 
     env:
-      BENCH_FILTER: 'Benchmark(Serialization/|StdioRoundtrip/|Initialize$|Shutdown$|ConcurrentSessions$)'
+      BENCH_FILTER: 'Benchmark(Serialization/|StdioRoundtrip/|Initialize$|Shutdown$|ConcurrentSessions$|ConcurrentSessions_Scaled/|SustainedLoad$|CodecComparison/)'
 
     steps:
       - name: Checkout PR branch

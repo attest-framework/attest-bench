@@ -8,8 +8,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/attest-framework/attest-bench/engine/internal/trace"
 )
@@ -175,6 +177,7 @@ func BenchmarkSubprocessRoundtrip(b *testing.B) {
 	}{
 		{"10step_5assert", 10, 5},
 		{"100step_10assert", 100, 10},
+		{"xl_500step_20assert", 500, 20},
 	}
 
 	for _, tc := range sizes {
@@ -347,4 +350,143 @@ func BenchmarkSerializationScaling(b *testing.B) {
 			}
 		})
 	}
+}
+
+// BenchmarkConcurrentSessions_Scaled runs parameterized concurrent Serve
+// instances (2, 5, 10 sessions) with per-request latency percentile reporting.
+func BenchmarkConcurrentSessions_Scaled(b *testing.B) {
+	sessionCounts := []int{2, 5, 10}
+	raw := trace.GenerateEvaluateBatchRequest(42, 50, 10) // medium size
+
+	for _, numSessions := range sessionCounts {
+		b.Run(fmt.Sprintf("%d_sessions", numSessions), func(b *testing.B) {
+			b.ReportAllocs()
+
+			for b.Loop() {
+				type session struct {
+					clientR *io.PipeReader
+					clientW *io.PipeWriter
+					br      *bufio.Reader
+					done    chan error
+				}
+
+				startSession := func() session {
+					clientR, serverW := io.Pipe()
+					serverR, clientW := io.Pipe()
+					done := make(chan error, 1)
+					go func() { done <- Serve(serverR, serverW) }()
+					br := bufio.NewReader(clientR)
+					br.ReadBytes('\n')                                //nolint:errcheck // ready
+					clientW.Write(trace.GenerateInitializeRequest(1)) //nolint:errcheck
+					br.ReadBytes('\n')                                //nolint:errcheck // init response
+					return session{clientR: clientR, clientW: clientW, br: br, done: done}
+				}
+
+				sessions := make([]session, numSessions)
+				for i := range sessions {
+					sessions[i] = startSession()
+				}
+
+				var mu sync.Mutex
+				var allLatencies []time.Duration
+				var wg sync.WaitGroup
+				wg.Add(numSessions)
+
+				for _, s := range sessions {
+					go func(s session) {
+						defer wg.Done()
+						for i := 0; i < 10; i++ {
+							start := time.Now()
+							s.clientW.Write(raw)          //nolint:errcheck
+							s.clientW.Write([]byte("\n")) //nolint:errcheck
+							s.br.ReadBytes('\n')          //nolint:errcheck
+							d := time.Since(start)
+							mu.Lock()
+							allLatencies = append(allLatencies, d)
+							mu.Unlock()
+						}
+					}(s)
+				}
+				wg.Wait()
+
+				// Report percentiles across all sessions.
+				sort.Slice(allLatencies, func(i, j int) bool { return allLatencies[i] < allLatencies[j] })
+				p50 := percentile(allLatencies, 0.50)
+				p99 := percentile(allLatencies, 0.99)
+				b.ReportMetric(float64(p50.Microseconds()), "p50_µs")
+				b.ReportMetric(float64(p99.Microseconds()), "p99_µs")
+				if p50 > 0 {
+					b.ReportMetric(float64(p99)/float64(p50), "p99/p50_ratio")
+				}
+
+				// Shutdown all sessions.
+				for _, s := range sessions {
+					s.clientW.Write(trace.GenerateShutdownRequest(999)) //nolint:errcheck
+					s.br.ReadBytes('\n')                                //nolint:errcheck
+					<-s.done
+					s.clientR.Close()
+					s.clientW.Close()
+				}
+			}
+		})
+	}
+}
+
+// BenchmarkSustainedLoad measures latency distribution over a long-lived Serve
+// instance to surface GC pressure and heap accumulation effects.
+func BenchmarkSustainedLoad(b *testing.B) {
+	clientR, serverW := io.Pipe()
+	serverR, clientW := io.Pipe()
+	done := make(chan error, 1)
+	go func() { done <- Serve(serverR, serverW) }()
+
+	br := bufio.NewReader(clientR)
+	if _, err := br.ReadBytes('\n'); err != nil {
+		b.Fatalf("read ready signal: %v", err)
+	}
+
+	// Initialize.
+	if _, err := clientW.Write(trace.GenerateInitializeRequest(0)); err != nil {
+		b.Fatalf("write init: %v", err)
+	}
+	if _, err := br.ReadBytes('\n'); err != nil {
+		b.Fatalf("read init response: %v", err)
+	}
+
+	raw := trace.GenerateEvaluateBatchRequest(42, 100, 10)
+
+	// Warmup — 50 iterations to populate heap.
+	for i := 0; i < 50; i++ {
+		clientW.Write(raw)          //nolint:errcheck
+		clientW.Write([]byte("\n")) //nolint:errcheck
+		br.ReadBytes('\n')          //nolint:errcheck
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	latencies := make([]time.Duration, 0, b.N)
+	for b.Loop() {
+		start := time.Now()
+		clientW.Write(raw)          //nolint:errcheck
+		clientW.Write([]byte("\n")) //nolint:errcheck
+		br.ReadBytes('\n')          //nolint:errcheck
+		latencies = append(latencies, time.Since(start))
+	}
+
+	if len(latencies) > 0 {
+		sort.Slice(latencies, func(i, j int) bool { return latencies[i] < latencies[j] })
+		b.ReportMetric(float64(percentile(latencies, 0.50).Microseconds()), "p50_µs")
+		b.ReportMetric(float64(percentile(latencies, 0.95).Microseconds()), "p95_µs")
+		b.ReportMetric(float64(percentile(latencies, 0.99).Microseconds()), "p99_µs")
+		b.ReportMetric(float64(latencies[len(latencies)-1].Microseconds()), "max_µs")
+	}
+
+	// Shutdown.
+	shutReq := trace.GenerateShutdownRequest(999)
+	clientW.Write(shutReq) //nolint:errcheck
+	br.ReadBytes('\n')     //nolint:errcheck
+	<-done
+	clientR.Close()
+	clientW.Close()
 }

@@ -21,10 +21,11 @@ This runs the complete benchmark suite with synthetic traces and reports results
 | Benchmark | Steps | Assertions | Target | Hard Ceiling | Actual | Status |
 |-----------|-------|------------|--------|-------------|--------|--------|
 | Small EvaluateBatch | 10 | 5 | <3ms | 5ms | 0.07ms | PASS |
-| Medium EvaluateBatch | 50 | 10 | <5ms | 10ms | 0.41ms | PASS |
+| Medium EvaluateBatch | 50 | 10 | <5ms | 10ms | 0.42ms | PASS |
 | Large EvaluateBatch | 100 | 10 | <5ms | 10ms | 1.19ms | PASS |
-| XL EvaluateBatch | 500 | 20 | <15ms | 30ms | 10.58ms | PASS |
-| Engine cold start | — | — | <500ms | 1000ms | 3.19ms | PASS |
+| XL EvaluateBatch | 500 | 20 | <15ms | 30ms | 10.46ms | PASS |
+| XL Subprocess Roundtrip | 500 | 20 | <15ms | 30ms | 15.35ms | MONITOR |
+| Engine cold start | — | — | <500ms | 1000ms | 3.23ms | PASS |
 
 ## Project Structure
 
@@ -47,9 +48,13 @@ make bench-startup                # Engine cold start benchmarks only
 make bench-init                   # Initialize method benchmarks
 make bench-shutdown               # Shutdown method benchmarks
 make bench-subprocess             # Subprocess lifecycle roundtrip
-make bench-concurrent             # Concurrent session contention test
+make bench-concurrent             # Concurrent session contention test (2 sessions)
+make bench-concurrent-scaled      # Scaled concurrency (2, 5, 10 sessions)
 make bench-scaling                # Serialization scaling across step counts
 make bench-latency                # Percentile latency collection (p50/p95/p99)
+make bench-sustained              # Sustained load GC pressure test
+make bench-codec                  # Codec comparison (stdlib, json-iterator, segmentio)
+make bench-profile-allocs         # Allocation profiling for serialization benchmarks
 make bench-report                 # Generate structured markdown report from latest results
 ```
 
