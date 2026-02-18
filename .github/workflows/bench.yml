@@ -27,6 +27,17 @@ jobs:
           path: base
         if: github.event_name == 'pull_request'
 
+      - name: Check base has benchmarks
+        id: base-check
+        if: github.event_name == 'pull_request'
+        run: |
+          if [[ -f base/go.mod && -d base/engine ]]; then
+            echo "has_benchmarks=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_benchmarks=false" >> "$GITHUB_OUTPUT"
+            echo "Base branch has no benchmarks to compare against"
+          fi
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -55,13 +66,13 @@ jobs:
 
       - name: Build engine (base)
         working-directory: base
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && steps.base-check.outputs.has_benchmarks == 'true'
         run: |
           CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o bin/attest-engine ./engine/cmd/attest-engine
 
       - name: Run benchmarks (base)
         working-directory: base/engine
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && steps.base-check.outputs.has_benchmarks == 'true'
         run: |
           mkdir -p ../results
           go test ./internal/protocol/ \
@@ -75,7 +86,7 @@ jobs:
 
       - name: Compare with benchstat
         id: benchstat
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && steps.base-check.outputs.has_benchmarks == 'true'
         run: |
           OUTPUT=$(benchstat base/results/bench-base.txt pr/results/bench-pr.txt 2>&1)
           echo "${OUTPUT}"
@@ -85,12 +96,12 @@ jobs:
             echo 'EOF'
           } >> "${GITHUB_OUTPUT}"
 
-      - name: Comment PR with results
+      - name: Comment PR with comparison
         uses: actions/github-script@v7
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && steps.base-check.outputs.has_benchmarks == 'true'
         with:
           script: |
-            const body = `## Benchmark Results
+            const body = `## Benchmark Comparison
 
             \`\`\`
             ${{ steps.benchstat.outputs.result }}
@@ -105,7 +116,7 @@ jobs:
             });
 
             const existing = comments.find(c =>
-              c.user.type === 'Bot' && c.body.startsWith('## Benchmark Results')
+              c.user.type === 'Bot' && c.body.startsWith('## Benchmark')
             );
 
             if (existing) {
@@ -124,6 +135,24 @@ jobs:
               });
             }
 
+      - name: Comment PR (no baseline)
+        uses: actions/github-script@v7
+        if: github.event_name == 'pull_request' && steps.base-check.outputs.has_benchmarks != 'true'
+        with:
+          script: |
+            const body = `## Benchmark Results (no baseline)
+
+            Base branch has no benchmarks to compare against. PR benchmark results uploaded as artifact.
+
+            _PR: \`${{ github.event.pull_request.head.sha }}\`_`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
+
       - name: Upload PR benchmark results
         uses: actions/upload-artifact@v4
         with:
@@ -132,7 +161,7 @@ jobs:
 
       - name: Upload base benchmark results
         uses: actions/upload-artifact@v4
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && steps.base-check.outputs.has_benchmarks == 'true'
         with:
           name: bench-results-base
           path: base/results/bench-base.txt
