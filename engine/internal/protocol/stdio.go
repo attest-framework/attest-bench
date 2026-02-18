@@ -57,6 +57,38 @@ func Serve(r io.Reader, w io.Writer) error {
 				Result:  json.RawMessage(result),
 				ID:      req.ID,
 			}
+		case "initialize":
+			var p InitializeParams
+			_ = json.Unmarshal(req.Params, &p)
+			initResult := InitializeResult{
+				EngineVersion: "0.1.0",
+				Capabilities:  []string{"evaluate_batch", "trace.submit"},
+				Compatible:    true,
+			}
+			result, _ := json.Marshal(initResult)
+			resp = &Response{
+				Jsonrpc: JSONRPCVersion,
+				Result:  json.RawMessage(result),
+				ID:      req.ID,
+			}
+		case "evaluate_batch":
+			batchResult := makeDummyBatchResult(req.Params)
+			result, _ := json.Marshal(batchResult)
+			resp = &Response{
+				Jsonrpc: JSONRPCVersion,
+				Result:  json.RawMessage(result),
+				ID:      req.ID,
+			}
+		case "shutdown":
+			shutdownResult := ShutdownResult{Status: "ok"}
+			result, _ := json.Marshal(shutdownResult)
+			resp = &Response{
+				Jsonrpc: JSONRPCVersion,
+				Result:  json.RawMessage(result),
+				ID:      req.ID,
+			}
+			writeResponse(bw, resp)
+			return nil
 		default:
 			resp = NewErrorResponse(req.ID, MethodNotFound, "Method not found")
 		}
@@ -78,6 +110,22 @@ func writeResponse(bw *bufio.Writer, resp *Response) {
 	if err := bw.Flush(); err != nil {
 		slog.Error("flush error", "err", err)
 	}
+}
+
+func makeDummyBatchResult(params json.RawMessage) EvaluateBatchResult {
+	var p EvaluateBatchParams
+	if err := json.Unmarshal(params, &p); err != nil {
+		return EvaluateBatchResult{}
+	}
+	results := make([]AssertionResult, len(p.Assertions))
+	for i, a := range p.Assertions {
+		results[i] = AssertionResult{
+			AssertionID: a.ID,
+			Status:      "pass",
+			DurationNs:  1000, // 1µs dummy
+		}
+	}
+	return EvaluateBatchResult{Results: results}
 }
 
 // extractTraceID pulls the trace_id field from raw JSON params.
