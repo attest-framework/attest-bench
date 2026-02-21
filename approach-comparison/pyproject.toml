@@ -1,0 +1,13 @@
+[project]
+name = "approach-comparison"
+version = "0.1.0"
+description = "Three-approach agent evaluation benchmark for attest"
+requires-python = ">=3.12"
+dependencies = [
+    "attest-ai>=0.4.0",
+    "pytest>=8.0",
+    "rich>=13.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["."]

@@ -4,7 +4,7 @@ BENCH_PKG  := ./internal/protocol/
 BENCH_TIME := -benchtime=5s
 BENCH_RUN  := -count=10 -cpu=1 -benchmem
 
-.PHONY: engine engine-profile bench-serial bench-protocol bench-startup bench-all bench-init bench-shutdown bench-subprocess bench-concurrent bench-concurrent-scaled bench-scaling bench-latency bench-sustained bench-codec bench-profile-allocs bench-full bench-report compare report clean
+.PHONY: engine engine-profile bench-serial bench-protocol bench-startup bench-all bench-init bench-shutdown bench-subprocess bench-concurrent bench-concurrent-scaled bench-scaling bench-latency bench-sustained bench-codec bench-profile-allocs bench-full bench-report compare report clean bench-approaches bench-approaches-dry bench-approaches-single setup-approaches
 
 engine:
 	CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o $(BINARY) $(CMD)
@@ -75,3 +75,18 @@ report:
 clean:
 	rm -f $(BINARY)
 	rm -f results/bench-*.txt
+
+# --- Python benchmarks (approach comparison) ---
+
+bench-approaches:
+	cd approach-comparison && uv run python run_benchmark.py
+
+bench-approaches-dry:
+	cd approach-comparison && uv run python run_benchmark.py --dry-run
+
+bench-approaches-single:
+	@test -n "$(SCENARIO)" || (echo "usage: make bench-approaches-single SCENARIO=<id>" && exit 1)
+	cd approach-comparison && uv run python run_benchmark.py --scenarios $(SCENARIO)
+
+setup-approaches:
+	cd approach-comparison && uv sync
