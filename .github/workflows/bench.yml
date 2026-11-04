@@ -28,6 +28,9 @@ jobs:
       - name: Run tests
         run: go test ./... -count=1
 
+      - name: Test published-engine script
+        run: bash scripts/test-published-bench.sh
+
       - name: Smoke-check benchmarks
         working-directory: engine
         run: |
@@ -79,7 +82,7 @@ jobs:
           cache: true
 
       - name: Install benchstat
-        run: go install golang.org/x/perf/cmd/benchstat@latest
+        run: go install golang.org/x/perf/cmd/benchstat@be2c69fb417e
 
       - name: Build engine (PR)
         working-directory: pr

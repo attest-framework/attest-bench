@@ -5,9 +5,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"testing"
+	"time"
 
 	"github.com/attest-framework/attest-bench/engine/internal/trace"
 )
@@ -17,22 +19,35 @@ import (
 // unaffected.
 const publishedEngineEnv = "ATTEST_BENCH_PUBLISHED_ENGINE"
 
+// publishedCallTimeout bounds one request/response exchange so a hung engine
+// fails the benchmark instead of the job timeout.
+const publishedCallTimeout = 30 * time.Second
+
+// engineDirs are the working, home and cache directories handed to the engine.
+type engineDirs struct{ work, home, cache string }
+
+func newEngineDirs(b *testing.B) engineDirs {
+	b.Helper()
+	return engineDirs{work: b.TempDir(), home: b.TempDir(), cache: b.TempDir()}
+}
+
 // publishedEngine is a released attest-engine process speaking the released
 // protocol: no subcommand, no ready line, initialize carries protocol_version.
 type publishedEngine struct {
-	cmd    *exec.Cmd
-	stdin  interface{ Write([]byte) (int, error) }
-	stdout *bufio.Reader
-	close  func()
+	cmd   *exec.Cmd
+	stdin io.WriteCloser
+	lines chan []byte
 }
 
-func startPublishedEngine(b *testing.B, binPath string) *publishedEngine {
+func startPublishedEngine(b *testing.B, binPath string, dirs engineDirs) *publishedEngine {
 	b.Helper()
 	cmd := exec.Command(binPath)
-	// The binary is a downloaded artifact: empty working directory and an
-	// allowlisted environment, so it inherits no tokens and sees no checkout.
-	cmd.Dir = b.TempDir()
-	cmd.Env = []string{"PATH=/usr/bin:/bin", "HOME=" + b.TempDir(), "ATTEST_CACHE_DIR=" + b.TempDir()}
+	// Guard against accidental leaks, not a sandbox: an empty working
+	// directory and an allowlisted environment keep tokens and the checkout
+	// out of the engine's ordinary inputs. The process still runs as the
+	// runner user.
+	cmd.Dir = dirs.work
+	cmd.Env = []string{"PATH=/usr/bin:/bin", "HOME=" + dirs.home, "ATTEST_CACHE_DIR=" + dirs.cache}
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		b.Fatalf("stdin pipe: %v", err)
@@ -44,23 +59,52 @@ func startPublishedEngine(b *testing.B, binPath string) *publishedEngine {
 	if err := cmd.Start(); err != nil {
 		b.Fatalf("start %s: %v", binPath, err)
 	}
-	e := &publishedEngine{cmd: cmd, stdin: stdin, stdout: bufio.NewReaderSize(stdout, 1<<20)}
-	e.close = func() {
-		stdin.Close()
-		cmd.Wait() //nolint:errcheck // exit status of a stdin-closed server is not measured
-	}
+	e := &publishedEngine{cmd: cmd, stdin: stdin, lines: make(chan []byte, 1)}
+	go func() {
+		defer close(e.lines)
+		br := bufio.NewReaderSize(stdout, 1<<20)
+		for {
+			line, err := br.ReadBytes('\n')
+			if len(line) > 0 {
+				e.lines <- line
+			}
+			if err != nil {
+				return
+			}
+		}
+	}()
 	return e
 }
 
-// call sends one NDJSON request and fails the benchmark on any JSON-RPC error.
-func (e *publishedEngine) call(b *testing.B, req []byte) {
+func (e *publishedEngine) close() {
+	e.stdin.Close()
+	done := make(chan struct{})
+	go func() { e.cmd.Wait(); close(done) }() //nolint:errcheck // exit status of a stdin-closed server is not measured
+	select {
+	case <-done:
+	case <-time.After(publishedCallTimeout):
+		e.cmd.Process.Kill() //nolint:errcheck
+		<-done
+	}
+}
+
+// call sends one NDJSON request and returns the response line, failing the
+// benchmark on a write error, a timeout or a JSON-RPC error.
+func (e *publishedEngine) call(b *testing.B, req []byte) []byte {
 	b.Helper()
 	if _, err := e.stdin.Write(append(bytes.TrimRight(req, "\n"), '\n')); err != nil {
 		b.Fatalf("write request: %v", err)
 	}
-	line, err := e.stdout.ReadBytes('\n')
-	if err != nil {
-		b.Fatalf("read response: %v", err)
+	var line []byte
+	select {
+	case l, ok := <-e.lines:
+		if !ok {
+			b.Fatalf("engine closed stdout before responding")
+		}
+		line = l
+	case <-time.After(publishedCallTimeout):
+		e.cmd.Process.Kill() //nolint:errcheck
+		b.Fatalf("no response within %s", publishedCallTimeout)
 	}
 	var resp struct {
 		Error *struct {
@@ -76,6 +120,40 @@ func (e *publishedEngine) call(b *testing.B, req []byte) {
 	if resp.Error != nil {
 		b.Fatalf("engine error: %q: %q", resp.Error.Message, resp.Error.Data.Detail)
 	}
+	return line
+}
+
+// checkEvaluateResponse fails unless the response carries exactly the
+// requested assertion ids (the engine orders results by layer, not by
+// request), each once, all with status pass.
+func checkEvaluateResponse(b *testing.B, line []byte, want int) {
+	b.Helper()
+	var resp struct {
+		Result struct {
+			Results []struct {
+				AssertionID string `json:"assertion_id"`
+				Status      string `json:"status"`
+				Explanation string `json:"explanation"`
+			} `json:"results"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal(line, &resp); err != nil {
+		b.Fatalf("unmarshal evaluate_batch response: %v", err)
+	}
+	if got := len(resp.Result.Results); got != want {
+		b.Fatalf("evaluate_batch returned %d results, want %d", got, want)
+	}
+	seen := make(map[string]bool, want)
+	for _, r := range resp.Result.Results {
+		var idx int
+		if _, err := fmt.Sscanf(r.AssertionID, "assert-%04d", &idx); err != nil || idx < 0 || idx >= want || seen[r.AssertionID] {
+			b.Fatalf("unexpected or repeated assertion_id %q", r.AssertionID)
+		}
+		seen[r.AssertionID] = true
+		if r.Status != "pass" {
+			b.Fatalf("assertion %s status %q, want pass: %s", r.AssertionID, r.Status, r.Explanation)
+		}
+	}
 }
 
 func publishedInitializeRequest() []byte {
@@ -87,8 +165,9 @@ func publishedShutdownRequest() []byte {
 }
 
 // publishedEvaluateRequest builds an evaluate_batch request the released
-// engine accepts: a synthetic trace plus a required output object, and
-// deterministic layer 1-4 assertions that all pass.
+// engines (v1.0.0-rc.4 and later) accept: a synthetic trace with unique step
+// names and a required output object, plus deterministic layer 1-4
+// assertions that all pass on it.
 func publishedEvaluateRequest(steps, assertions int) []byte {
 	raw, err := json.Marshal(trace.GenerateSyntheticTraceN(42, steps))
 	if err != nil {
@@ -99,13 +178,15 @@ func publishedEvaluateRequest(steps, assertions int) []byte {
 		panic(fmt.Sprintf("unmarshal synthetic trace: %v", err))
 	}
 	tr["output"] = map[string]any{"message": "benchmark response"}
-	// The synthetic generator predates trace-v2 step types.
+	// The synthetic generator predates trace-v2 step types, and its step
+	// names repeat; the no_duplicates check needs unique names.
 	releasedStepType := map[string]string{"inference": "llm_call", "workflow": "agent_call"}
-	for _, step := range tr["steps"].([]any) {
+	for i, step := range tr["steps"].([]any) {
 		m := step.(map[string]any)
 		if mapped, ok := releasedStepType[m["type"].(string)]; ok {
 			m["type"] = mapped
 		}
+		m["name"] = fmt.Sprintf("step_%d", i)
 	}
 
 	specs := []struct {
@@ -114,8 +195,8 @@ func publishedEvaluateRequest(steps, assertions int) []byte {
 	}{
 		{"schema", map[string]any{"target": "output.message", "schema": map[string]any{"type": "string"}}},
 		{"content", map[string]any{"target": "output.message", "check": "contains", "value": "benchmark"}},
-		{"constraint", map[string]any{"field": "metadata.total_tokens", "operator": "gte", "value": 0}},
-		{"trace", map[string]any{"check": "no_duplicate_calls", "tools": []string{"search_code"}, "max_repetitions": 100000}},
+		{"constraint", map[string]any{"field": "steps.length", "operator": "gte", "value": 0}},
+		{"trace", map[string]any{"check": "no_duplicates"}},
 	}
 	list := make([]map[string]any, assertions)
 	for i := range list {
@@ -145,17 +226,21 @@ func publishedBinary(b *testing.B) string {
 // and shutdown for a released engine binary.
 func BenchmarkPublishedEngineStartup(b *testing.B) {
 	binPath := publishedBinary(b)
+	dirs := newEngineDirs(b)
 	b.ReportAllocs()
 	for b.Loop() {
-		e := startPublishedEngine(b, binPath)
-		e.call(b, publishedInitializeRequest())
-		e.call(b, publishedShutdownRequest())
-		e.close()
+		func() {
+			e := startPublishedEngine(b, binPath, dirs)
+			defer e.close()
+			e.call(b, publishedInitializeRequest())
+			e.call(b, publishedShutdownRequest())
+		}()
 	}
 }
 
 // BenchmarkPublishedEngineEvaluate measures evaluate_batch roundtrips against
-// one live released engine process.
+// one live released engine process. The first response is decoded and checked
+// outside the timed loop: every assertion must pass.
 func BenchmarkPublishedEngineEvaluate(b *testing.B) {
 	binPath := publishedBinary(b)
 	sizes := []struct {
@@ -170,9 +255,10 @@ func BenchmarkPublishedEngineEvaluate(b *testing.B) {
 		b.Run(tc.name, func(b *testing.B) {
 			b.ReportAllocs()
 			req := publishedEvaluateRequest(tc.steps, tc.asserts)
-			e := startPublishedEngine(b, binPath)
+			e := startPublishedEngine(b, binPath, newEngineDirs(b))
 			defer e.close()
 			e.call(b, publishedInitializeRequest())
+			checkEvaluateResponse(b, e.call(b, req), tc.asserts)
 			b.ResetTimer()
 			for b.Loop() {
 				e.call(b, req)
