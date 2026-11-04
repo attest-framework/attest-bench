@@ -27,6 +27,27 @@ This runs the complete benchmark suite with synthetic traces and reports results
 | XL Subprocess Roundtrip | 500 | 20 | <15ms | 30ms | 15.35ms | MONITOR |
 | Engine cold start | — | — | <500ms | 1000ms | 3.23ms | PASS |
 
+## Benchmarking published engine releases
+
+The `benchmark-regression` workflow also benchmarks the released `attest-engine` binary from an [attest](https://github.com/attest-framework/attest) GitHub release and reports the delta against the previous published release:
+
+```bash
+gh workflow run benchmark-regression.yml -f tag=v1.0.0-rc.5
+gh workflow run benchmark-regression.yml -f tag=v1.0.0 -f base_tag=v1.0.0-rc.5
+```
+
+`tag` and `base_tag` must match `vX.Y.Z` or `vX.Y.Z-rc.N`. `base_tag` defaults to the previous published `v*` release by semver order (rc tags count). Without `tag`, the workflow keeps its source-built mode against `results/baselines/ci-linux-amd64.txt`.
+
+For each tag the job downloads `attest-engine-linux-amd64` and `checksums-sha256.txt` with the read-only workflow token, verifies the sha256, and fails closed on a missing entry, a duplicate entry or a mismatch. It then runs `BenchmarkPublishedEngine*` (process start plus `initialize`, and `evaluate_batch` round-trips) against each binary and compares them with benchstat. The delta is written to the job summary and uploaded as the `published-engine-benchmarks` artifact.
+
+Gate: the job fails only when `tag` shows a significant regression above 15% against `base_tag`; improvements and non-significant deltas pass. The comparison is always reported first, so a failing run still carries the full delta.
+
+To run it locally (needs `gh`, `benchstat` and Go):
+
+```bash
+scripts/published-bench.sh --tag v1.0.0-rc.5 --platform darwin-arm64 --out /tmp/published-bench
+```
+
 ## Project Structure
 
 - `engine/` — Minimal engine implementation for benchmarking

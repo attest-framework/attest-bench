@@ -1,19 +1,47 @@
+# Two modes:
+#   source-built (default): builds ./engine and compares against the committed
+#     baseline. Runs on repository_dispatch and on workflow_dispatch without a tag.
+#   published: workflow_dispatch with `tag` benchmarks the released
+#     attest-engine-linux-amd64 for that tag against `base_tag` (default: the
+#     previous published v* release, rc tags included). The job fails only when
+#     the new tag regresses more than 15% against the base; the delta is always
+#     written to the job summary and the artifact first. See
+#     scripts/published-bench.sh.
+#
+# Actions are pinned by major-version tag, as in bench.yml.
 name: Benchmark Regression Detection
 
 on:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Published attest release to benchmark, e.g. v1.0.0-rc.5 (empty: source-built mode)'
+        required: false
+        default: ''
+        type: string
+      base_tag:
+        description: 'Published release to compare against (default: previous v* release)'
+        required: false
+        default: ''
+        type: string
   repository_dispatch:
     types: [engine-changed]
+
+permissions:
+  contents: read
 
 jobs:
   regression:
     name: Detect benchmark regressions
+    if: github.event_name != 'workflow_dispatch' || inputs.tag == ''
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -99,3 +127,48 @@ jobs:
         with:
           name: benchmark-regression-results
           path: results/bench-current.txt
+
+  published:
+    name: Benchmark published engine
+    if: github.event_name == 'workflow_dispatch' && inputs.tag != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      TAG: ${{ inputs.tag }}
+      BASE_TAG: ${{ inputs.base_tag }}
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install benchstat
+        run: go install golang.org/x/perf/cmd/benchstat@be2c69fb417e
+
+      - name: Benchmark published engines
+        run: |
+          args=(--tag "$TAG" --platform linux-amd64 --out results/published)
+          if [[ -n "$BASE_TAG" ]]; then args+=(--base-tag "$BASE_TAG"); fi
+          scripts/published-bench.sh "${args[@]}"
+
+      - name: Publish job summary
+        if: always()
+        run: |
+          if [[ -f results/published/summary.md ]]; then
+            cat results/published/summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: published-engine-benchmarks
+          path: results/published/
