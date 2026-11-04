@@ -7,7 +7,8 @@
 # For each tag: download the platform binary and checksums-sha256.txt from the
 # attest GitHub release, verify the sha256 (fail closed on a missing entry, a
 # duplicate entry or a mismatch), then run the published-engine benchmarks in
-# engine/internal/protocol against the binary. benchstat compares base -> tag.
+# engine/internal/protocol against the binary, alternating base and tag sample
+# by sample. benchstat compares base -> tag.
 #
 # Gate: exits 1 when the benchstat delta of --tag against --base-tag shows a
 # significant regression above REGRESSION_THRESHOLD_PCT (15). The delta is
@@ -104,14 +105,15 @@ fetch_verified() {
   echo "$t: $asset sha256 verified ($got)"
 }
 
+# run_bench TAG BIN DEST: one benchmark sample (-count=1) appended to DEST.
 run_bench() {
   local t="$1" bin="$2" dest="$3"
   # The binary is untrusted: re-check it right before it runs and keep the
   # download token out of the benchmark process and of the engine it spawns.
   [[ "$(sha256_of "$bin")" == "$(cat "$bin.sha256")" ]] || die "$t: binary changed after verification"
   (cd "$REPO_ROOT/engine" && env -u GH_TOKEN -u GITHUB_TOKEN ATTEST_BENCH_PUBLISHED_ENGINE="$bin" go test ./internal/protocol/ \
-    -run='^$' -bench="$BENCH_PATTERN" -benchmem -benchtime="$BENCH_TIME" -count="$BENCH_COUNT" \
-    -cpu=1 -timeout=30m) | tee "$dest"
+    -run='^$' -bench="$BENCH_PATTERN" -benchmem -benchtime="$BENCH_TIME" -count=1 \
+    -cpu=1 -timeout=30m) | tee -a "$dest"
   grep -q '^BenchmarkPublished' "$dest" || die "$t: benchmark produced no BenchmarkPublished results"
 }
 
@@ -124,8 +126,13 @@ trap 'rm -rf "$work"' EXIT
 
 fetch_verified "$base_tag" "$work/base"
 fetch_verified "$tag" "$work/new"
-run_bench "$base_tag" "$work/base/attest-engine" "$out/bench-${base_tag}.txt"
-run_bench "$tag" "$work/new/attest-engine" "$out/bench-${tag}.txt"
+: >"$out/bench-${base_tag}.txt"
+: >"$out/bench-${tag}.txt"
+# Alternate the engines sample by sample so runner drift hits both equally.
+for ((i = 1; i <= BENCH_COUNT; i++)); do
+  run_bench "$base_tag" "$work/base/attest-engine" "$out/bench-${base_tag}.txt"
+  run_bench "$tag" "$work/new/attest-engine" "$out/bench-${tag}.txt"
+done
 
 delta="$(benchstat "$out/bench-${base_tag}.txt" "$out/bench-${tag}.txt" 2>&1)" || { printf '%s\n' "$delta" >&2; die "benchstat failed"; }
 [[ "$delta" == *"sec/op"* ]] || die "benchstat output has no sec/op table; refusing to pass the gate"
