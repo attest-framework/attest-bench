@@ -27,6 +27,29 @@ This runs the complete benchmark suite with synthetic traces and reports results
 | XL Subprocess Roundtrip | 500 | 20 | <15ms | 30ms | 15.35ms | MONITOR |
 | Engine cold start | — | — | <500ms | 1000ms | 3.23ms | PASS |
 
+## Benchmarking published engine releases
+
+The `benchmark-regression` workflow also benchmarks the released `attest-engine` binary from an [attest](https://github.com/attest-framework/attest) GitHub release and reports the delta against the previous published release:
+
+```bash
+gh workflow run benchmark-regression.yml -f tag=v1.0.0-rc.5
+gh workflow run benchmark-regression.yml -f tag=v1.0.0 -f base_tag=v1.0.0-rc.5
+```
+
+`tag` and `base_tag` must match `vX.Y.Z` or `vX.Y.Z-rc.N`. `base_tag` defaults to the previous published `v*` release by semver order (rc tags count). Without `tag`, the workflow keeps its source-built mode against `results/baselines/ci-linux-amd64.txt`.
+
+For each tag the job downloads `attest-engine-linux-amd64` and `checksums-sha256.txt` with the read-only workflow token in a fetch step, verifies the sha256, and fails closed on a missing asset, a missing or duplicate entry or a mismatch. A second step, whose environment has no token, re-verifies each binary against the hashes passed from the fetch step before every run. The checksums file and the binary come from the same release, so this detects corruption and mismatched uploads, not a compromised release; releases carry no build attestations yet. The engine runs with an allowlisted environment in an empty working directory, which guards against accidental leaks and is not a sandbox (the runner user has sudo). The job does not use the Go cache, since it executes downloaded binaries.
+
+It then runs `BenchmarkPublishedEngine*` (process start plus `initialize`, and `evaluate_batch` round-trips; every assertion in the first response must pass) against each binary, alternating base and tag samples (10 samples of 200 iterations, at least 6 so benchstat can compute intervals), and compares them with benchstat. The delta is written to the job summary and uploaded as the `published-engine-benchmarks` artifact.
+
+Gate: the job fails only when a `sec/op` row shows a significant regression above 15% of `tag` against `base_tag`. `B/op` and `allocs/op` measure the Go client rather than the engine and are reported, not gated. Improvements and non-significant deltas pass. The comparison is always reported first, so a failing run still carries the full delta.
+
+To run it locally (needs `gh`, `benchstat` and Go; `scripts/test-published-bench.sh` holds the fixture tests for the gate and tag ordering and runs in the `Benchmark` workflow):
+
+```bash
+scripts/published-bench.sh --tag v1.0.0-rc.5 --platform darwin-arm64 --out /tmp/published-bench
+```
+
 ## Project Structure
 
 - `engine/` — Minimal engine implementation for benchmarking
