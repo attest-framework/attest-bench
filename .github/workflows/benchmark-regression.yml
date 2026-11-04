@@ -136,7 +136,6 @@ jobs:
     env:
       TAG: ${{ inputs.tag }}
       BASE_TAG: ${{ inputs.base_tag }}
-      GH_TOKEN: ${{ github.token }}
 
     steps:
       - name: Checkout
@@ -154,6 +153,8 @@ jobs:
         run: go install golang.org/x/perf/cmd/benchstat@be2c69fb417e
 
       - name: Benchmark published engines
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           args=(--tag "$TAG" --platform linux-amd64 --out results/published)
           if [[ -n "$BASE_TAG" ]]; then args+=(--base-tag "$BASE_TAG"); fi

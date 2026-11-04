@@ -13,11 +13,15 @@
 # significant regression above REGRESSION_THRESHOLD_PCT (15). The delta is
 # always written to DIR/summary.md first, so a failing run is still a report.
 #
+# Trust limit: the checksums file and the binary come from the same release, so
+# the sha256 check detects corruption and mismatched uploads, not a compromised
+# release. Releases carry no build attestations today.
+#
 # Environment: GH_TOKEN (read-only is enough), BENCH_TIME (default 5s),
 # BENCH_COUNT (default 5), RELEASE_REPO (default attest-framework/attest).
 set -euo pipefail
 
-readonly TAG_RE='^v[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?$'
+readonly TAG_RE='^v[0-9]{1,6}\.[0-9]{1,6}\.[0-9]{1,6}(-rc\.[0-9]{1,6})?$'
 readonly REGRESSION_THRESHOLD_PCT=15
 readonly RELEASE_REPO="${RELEASE_REPO:-attest-framework/attest}"
 readonly BENCH_TIME="${BENCH_TIME:-5s}"
@@ -59,7 +63,7 @@ sort_key() {
   rc=1000000
   [[ "$t" == *-rc.* ]] && rc="${t##*-rc.}"
   IFS=. read -r major minor patch <<<"$core"
-  printf '%08d.%08d.%08d.%08d' "$major" "$minor" "$patch" "$rc"
+  printf '%08d.%08d.%08d.%08d' "$((10#$major))" "$((10#$minor))" "$((10#$patch))" "$((10#$rc))"
 }
 
 # Previous published release (rc tags count) strictly below $1.
@@ -95,13 +99,17 @@ fetch_verified() {
   got="$(sha256_of "$dir/$asset")"
   [[ "$got" == "$want" ]] || die "$t: sha256 mismatch for $asset (expected $want, got $got)"
   mv "$dir/$asset" "$dir/attest-engine"
-  chmod +x "$dir/attest-engine"
+  chmod 0500 "$dir/attest-engine"
+  echo "$got" >"$dir/attest-engine.sha256"
   echo "$t: $asset sha256 verified ($got)"
 }
 
 run_bench() {
   local t="$1" bin="$2" dest="$3"
-  (cd "$REPO_ROOT/engine" && ATTEST_BENCH_PUBLISHED_ENGINE="$bin" go test ./internal/protocol/ \
+  # The binary is untrusted: re-check it right before it runs and keep the
+  # download token out of the benchmark process and of the engine it spawns.
+  [[ "$(sha256_of "$bin")" == "$(cat "$bin.sha256")" ]] || die "$t: binary changed after verification"
+  (cd "$REPO_ROOT/engine" && env -u GH_TOKEN -u GITHUB_TOKEN ATTEST_BENCH_PUBLISHED_ENGINE="$bin" go test ./internal/protocol/ \
     -run='^$' -bench="$BENCH_PATTERN" -benchmem -benchtime="$BENCH_TIME" -count="$BENCH_COUNT" \
     -cpu=1 -timeout=30m) | tee "$dest"
   grep -q '^BenchmarkPublished' "$dest" || die "$t: benchmark produced no BenchmarkPublished results"
@@ -119,7 +127,8 @@ fetch_verified "$tag" "$work/new"
 run_bench "$base_tag" "$work/base/attest-engine" "$out/bench-${base_tag}.txt"
 run_bench "$tag" "$work/new/attest-engine" "$out/bench-${tag}.txt"
 
-delta="$(benchstat "$out/bench-${base_tag}.txt" "$out/bench-${tag}.txt" 2>&1)"
+delta="$(benchstat "$out/bench-${base_tag}.txt" "$out/bench-${tag}.txt" 2>&1)" || { printf '%s\n' "$delta" >&2; die "benchstat failed"; }
+[[ "$delta" == *"sec/op"* ]] || die "benchstat output has no sec/op table; refusing to pass the gate"
 {
   echo "## Published engine benchmarks: ${base_tag} -> ${tag} (${platform})"
   echo

@@ -29,7 +29,10 @@ type publishedEngine struct {
 func startPublishedEngine(b *testing.B, binPath string) *publishedEngine {
 	b.Helper()
 	cmd := exec.Command(binPath)
-	cmd.Env = append(os.Environ(), "ATTEST_CACHE_DIR="+b.TempDir())
+	// The binary is a downloaded artifact: empty working directory and an
+	// allowlisted environment, so it inherits no tokens and sees no checkout.
+	cmd.Dir = b.TempDir()
+	cmd.Env = []string{"PATH=/usr/bin:/bin", "HOME=" + b.TempDir(), "ATTEST_CACHE_DIR=" + b.TempDir()}
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		b.Fatalf("stdin pipe: %v", err)
@@ -71,7 +74,7 @@ func (e *publishedEngine) call(b *testing.B, req []byte) {
 		b.Fatalf("unmarshal response: %v", err)
 	}
 	if resp.Error != nil {
-		b.Fatalf("engine error: %s: %s", resp.Error.Message, resp.Error.Data.Detail)
+		b.Fatalf("engine error: %q: %q", resp.Error.Message, resp.Error.Data.Detail)
 	}
 }
 
