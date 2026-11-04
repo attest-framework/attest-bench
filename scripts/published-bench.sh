@@ -17,15 +17,15 @@
 # the sha256 check detects corruption and mismatched uploads, not a compromised
 # release. Releases carry no build attestations today.
 #
-# Environment: GH_TOKEN (read-only is enough), BENCH_TIME (default 5s),
-# BENCH_COUNT (default 5), RELEASE_REPO (default attest-framework/attest).
+# Environment: GH_TOKEN (read-only is enough), BENCH_TIME (default 200x, fixed iterations),
+# BENCH_COUNT (default 10; benchstat needs 6+ for intervals), RELEASE_REPO (default attest-framework/attest).
 set -euo pipefail
 
 readonly TAG_RE='^v[0-9]{1,6}\.[0-9]{1,6}\.[0-9]{1,6}(-rc\.[0-9]{1,6})?$'
 readonly REGRESSION_THRESHOLD_PCT=15
 readonly RELEASE_REPO="${RELEASE_REPO:-attest-framework/attest}"
-readonly BENCH_TIME="${BENCH_TIME:-5s}"
-readonly BENCH_COUNT="${BENCH_COUNT:-5}"
+readonly BENCH_TIME="${BENCH_TIME:-200x}"
+readonly BENCH_COUNT="${BENCH_COUNT:-10}"
 readonly BENCH_PATTERN='^BenchmarkPublished'
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
