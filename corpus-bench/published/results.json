@@ -3,7 +3,7 @@
     "a": {
       "by_group": {
         "mutant": {
-          "flagged": 9,
+          "flagged": 17,
           "n": 30
         },
         "output-only": {
@@ -17,8 +17,12 @@
       },
       "by_kind": {
         "alter_world_effect": {
-          "flagged": 0,
-          "n": 13
+          "flagged": 2,
+          "n": 6
+        },
+        "alter_world_effect_seeded_orders": {
+          "flagged": 6,
+          "n": 7
         },
         "double_refund": {
           "flagged": 1,
@@ -107,26 +111,18 @@
           "n": 3
         }
       },
-      "fn": 36,
+      "fn": 28,
       "fp": 3,
       "fpr": 0.1667,
       "missed": [
         "mutant/inc-1042-fixed:alter_world_effect:notifications.0.drop",
         "mutant/inc-1042-fixed:alter_world_effect:notifications.0.duplicate",
-        "mutant/inc-1042-fixed:alter_world_effect:orders.0.duplicate",
         "mutant/inc-1042-fixed:alter_world_effect:orders.1.change.amount_cents",
-        "mutant/inc-1042-fixed:alter_world_effect:orders.1.duplicate",
-        "mutant/inc-1042-fixed:alter_world_effect:refunds.0.change.amount_cents",
         "mutant/inc-1042-fixed:alter_world_effect:refunds.0.drop",
         "mutant/inc-1042-fixed:inject_tool_error:3",
         "mutant/inc-1042-fixed:perturb_argument:3.reason",
         "mutant/inc-1042-fixed:perturb_argument:5.order_id",
-        "mutant/inc-1077-fixed:alter_world_effect:orders.0.duplicate",
-        "mutant/inc-1077-fixed:alter_world_effect:orders.1.duplicate",
-        "mutant/inc-1077-fixed:alter_world_effect:orders.2.drop",
-        "mutant/inc-1077-fixed:alter_world_effect:orders.2.duplicate",
         "mutant/inc-1077-fixed:alter_world_effect:refunds.0.drop",
-        "mutant/inc-1077-fixed:alter_world_effect:refunds.0.duplicate",
         "mutant/inc-1077-fixed:drop_tool_call:1",
         "mutant/inc-1077-fixed:inject_tool_error:1",
         "mutant/inc-1077-fixed:inject_tool_error:5",
@@ -151,13 +147,13 @@
       "model_calls": 0,
       "status": "run",
       "tn": 15,
-      "tp": 11,
-      "tpr": 0.234
+      "tp": 19,
+      "tpr": 0.4043
     },
     "a_or_b": {
       "by_group": {
         "mutant": {
-          "flagged": 9,
+          "flagged": 17,
           "n": 30
         },
         "output-only": {
@@ -171,8 +167,12 @@
       },
       "by_kind": {
         "alter_world_effect": {
-          "flagged": 0,
-          "n": 13
+          "flagged": 2,
+          "n": 6
+        },
+        "alter_world_effect_seeded_orders": {
+          "flagged": 6,
+          "n": 7
         },
         "double_refund": {
           "flagged": 1,
@@ -264,26 +264,18 @@
           "n": 3
         }
       },
-      "fn": 24,
+      "fn": 16,
       "fp": 6,
       "fpr": 0.3333,
       "missed": [
         "mutant/inc-1042-fixed:alter_world_effect:notifications.0.drop",
         "mutant/inc-1042-fixed:alter_world_effect:notifications.0.duplicate",
-        "mutant/inc-1042-fixed:alter_world_effect:orders.0.duplicate",
         "mutant/inc-1042-fixed:alter_world_effect:orders.1.change.amount_cents",
-        "mutant/inc-1042-fixed:alter_world_effect:orders.1.duplicate",
-        "mutant/inc-1042-fixed:alter_world_effect:refunds.0.change.amount_cents",
         "mutant/inc-1042-fixed:alter_world_effect:refunds.0.drop",
         "mutant/inc-1042-fixed:inject_tool_error:3",
         "mutant/inc-1042-fixed:perturb_argument:3.reason",
         "mutant/inc-1042-fixed:perturb_argument:5.order_id",
-        "mutant/inc-1077-fixed:alter_world_effect:orders.0.duplicate",
-        "mutant/inc-1077-fixed:alter_world_effect:orders.1.duplicate",
-        "mutant/inc-1077-fixed:alter_world_effect:orders.2.drop",
-        "mutant/inc-1077-fixed:alter_world_effect:orders.2.duplicate",
         "mutant/inc-1077-fixed:alter_world_effect:refunds.0.drop",
-        "mutant/inc-1077-fixed:alter_world_effect:refunds.0.duplicate",
         "mutant/inc-1077-fixed:drop_tool_call:1",
         "mutant/inc-1077-fixed:inject_tool_error:1",
         "mutant/inc-1077-fixed:inject_tool_error:5",
@@ -296,8 +288,8 @@
       "model_calls": 0,
       "status": "run",
       "tn": 12,
-      "tp": 23,
-      "tpr": 0.4894
+      "tp": 31,
+      "tpr": 0.6596
     },
     "b": {
       "by_group": {
@@ -317,7 +309,11 @@
       "by_kind": {
         "alter_world_effect": {
           "flagged": 0,
-          "n": 13
+          "n": 6
+        },
+        "alter_world_effect_seeded_orders": {
+          "flagged": 0,
+          "n": 7
         },
         "double_refund": {
           "flagged": 0,

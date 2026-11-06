@@ -6,9 +6,9 @@ Engine: attest-engine 1.1.0-rc.3. Corpus: 65 labeled runs, 47 faulty and 18 clea
 
 | Approach | True-positive rate | False-positive rate | Cost (USD) | Model calls |
 |---|---|---|---|---|
-| (a) attest contracts + effects | 11/47 (23.4%) | 3/18 (16.7%) | $0.00 | 0 |
+| (a) attest contracts + effects | 19/47 (40.4%) | 3/18 (16.7%) | $0.00 | 0 |
 | (b) pytest + cassette, output assertions | 12/47 (25.5%) | 3/18 (16.7%) | $0.00 | 0 |
-| (a) or (b) flags | 23/47 (48.9%) | 6/18 (33.3%) | $0.00 | 0 |
+| (a) or (b) flags | 31/47 (66.0%) | 6/18 (33.3%) | $0.00 | 0 |
 | (c) judge-only | not run | not run | not run | not run |
 
 True-positive rate: faulty runs flagged / faulty runs. False-positive rate: clean runs flagged / clean runs. Wall time is in `timings.json` and varies by run.
@@ -19,13 +19,14 @@ True-positive rate: faulty runs flagged / faulty runs. False-positive rate: clea
 |---|---|---|---|---|
 | real incident runs (INC-1042 before the fix, INC-1077) | 2 | 2/2 (100.0%) | 0/2 (0.0%) | 2/2 (100.0%) |
 | output-only faults (wrong reply, correct behavior) | 15 | 0/15 (0.0%) | 12/15 (80.0%) | 12/15 (80.0%) |
-| behavior mutants (`attest-engine mutate`) | 30 | 9/30 (30.0%) | 0/30 (0.0%) | 9/30 (30.0%) |
+| behavior mutants (`attest-engine mutate`) | 30 | 17/30 (56.7%) | 0/30 (0.0%) | 17/30 (56.7%) |
 
 ## True-positive rate by fault kind
 
 | Fault kind | Runs | (a) attest | (b) output assertions |
 |---|---|---|---|
-| `alter_world_effect` | 13 | 0/13 (0.0%) | 0/13 (0.0%) |
+| `alter_world_effect` | 6 | 2/6 (33.3%) | 0/6 (0.0%) |
+| `alter_world_effect_seeded_orders` | 7 | 6/7 (85.7%) | 0/7 (0.0%) |
 | `double_refund` | 1 | 1/1 (100.0%) | 0/1 (0.0%) |
 | `drop_tool_call` | 3 | 2/3 (66.7%) | 0/3 (0.0%) |
 | `duplicate_tool_call` | 5 | 5/5 (100.0%) | 0/5 (0.0%) |
@@ -38,6 +39,8 @@ True-positive rate: faulty runs flagged / faulty runs. False-positive rate: clea
 | `reply_empty` | 3 | 0/3 (0.0%) | 3/3 (100.0%) |
 | `reply_invented_credit` | 3 | 0/3 (0.0%) | 0/3 (0.0%) |
 | `reply_wrong_amount` | 3 | 0/3 (0.0%) | 3/3 (100.0%) |
+
+`alter_world_effect_seeded_orders` edits the seeded `orders` rows, which the agent never writes. Those mutants change input data, not agent behavior, so they are reported apart from `alter_world_effect`.
 
 ## False positives by clean variant
 
@@ -52,24 +55,16 @@ True-positive rate: faulty runs flagged / faulty runs. False-positive rate: clea
 
 ## Runs each approach misses
 
-### (a) attest contracts + effects: 36 missed
+### (a) attest contracts + effects: 28 missed
 
 - `mutant/inc-1042-fixed:alter_world_effect:notifications.0.drop`
 - `mutant/inc-1042-fixed:alter_world_effect:notifications.0.duplicate`
-- `mutant/inc-1042-fixed:alter_world_effect:orders.0.duplicate`
 - `mutant/inc-1042-fixed:alter_world_effect:orders.1.change.amount_cents`
-- `mutant/inc-1042-fixed:alter_world_effect:orders.1.duplicate`
-- `mutant/inc-1042-fixed:alter_world_effect:refunds.0.change.amount_cents`
 - `mutant/inc-1042-fixed:alter_world_effect:refunds.0.drop`
 - `mutant/inc-1042-fixed:inject_tool_error:3`
 - `mutant/inc-1042-fixed:perturb_argument:3.reason`
 - `mutant/inc-1042-fixed:perturb_argument:5.order_id`
-- `mutant/inc-1077-fixed:alter_world_effect:orders.0.duplicate`
-- `mutant/inc-1077-fixed:alter_world_effect:orders.1.duplicate`
-- `mutant/inc-1077-fixed:alter_world_effect:orders.2.drop`
-- `mutant/inc-1077-fixed:alter_world_effect:orders.2.duplicate`
 - `mutant/inc-1077-fixed:alter_world_effect:refunds.0.drop`
-- `mutant/inc-1077-fixed:alter_world_effect:refunds.0.duplicate`
 - `mutant/inc-1077-fixed:drop_tool_call:1`
 - `mutant/inc-1077-fixed:inject_tool_error:1`
 - `mutant/inc-1077-fixed:inject_tool_error:5`

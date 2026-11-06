@@ -22,7 +22,7 @@ This runs the complete benchmark suite with synthetic traces and reports results
 
 **Approaches**
 
-- **(a) attest contracts and effects.** The contracts committed with the Refund Desk fixtures (tool order, per-order call cardinality, and the effect contracts "refunds sum to at most the order amount" and "the notification goes to the order's customer"), evaluated by `attest-engine` on each run's recorded trace and world snapshot. No agent is re-run and no model is called.
+- **(a) attest contracts and effects.** The contracts committed with the Refund Desk fixtures (tool order and per-order call cardinality, plus the effect contract "refunds sum to at most the order amount"; only the INC-1077 contract set also has "the notification goes to the order's customer"), evaluated by `attest-engine` on each run's recorded trace and world snapshot. No agent is re-run and no model is called.
 - **(b) pytest with a cassette and output assertions.** Each run's recorded final model response sits in a VCR-style cassette that a pytest test replays by request key. The test asserts that the reply states the refunded amount, does not say "could not" and does not state double the amount. It sees the reply and nothing else. It is a hand-written harness, not the `vcrpy` library.
 - **(c) judge-only.** Not run. It needs a model key and runs only through the opt-in `corpus-bench-judge` workflow (`workflow_dispatch`, spend-capped). No (c) number is published.
 
@@ -40,16 +40,18 @@ This runs the complete benchmark suite with synthetic traces and reports results
 
 | Approach | Faulty runs flagged | Clean runs flagged | Cost (USD) | Model calls |
 |---|---|---|---|---|
-| (a) attest contracts + effects | 11/47 (23.4%) | 3/18 (16.7%) | $0.00 | 0 |
+| (a) attest contracts + effects | 19/47 (40.4%) | 3/18 (16.7%) | $0.00 | 0 |
 | (b) pytest + cassette, output assertions | 12/47 (25.5%) | 3/18 (16.7%) | $0.00 | 0 |
-| (a) or (b) flags | 23/47 (48.9%) | 6/18 (33.3%) | $0.00 | 0 |
+| (a) or (b) flags | 31/47 (66.0%) | 6/18 (33.3%) | $0.00 | 0 |
 | (c) judge-only | not run | not run | not run | not run |
 
 | Fault group | Runs | (a) | (b) |
 |---|---|---|---|
 | Real incident runs | 2 | 2/2 | 0/2 |
 | Output-only faults | 15 | 0/15 | 12/15 |
-| Behavior mutants | 30 | 9/30 | 0/30 |
+| Behavior mutants | 30 | 17/30 | 0/30 |
+| of which: agent-behavior mutants | 23 | 11/23 | 0/23 |
+| of which: edits to seeded `orders` rows | 7 | 6/7 | 0/7 |
 
 Wall time is in `corpus-bench/published/timings.json` (median of three runs on the author's machine, under a second for each approach); it varies by machine and run. Everything else is byte-for-byte reproducible: the same engine commit, the same seed, the same table.
 
@@ -59,7 +61,8 @@ Wall time is in `corpus-bench/published/timings.json` (median of three runs on t
 - The corpus is synthetic and small. Every run comes from one scripted-model agent, Refund Desk. Its Python and TypeScript recordings differ only in the command that produced them, so one copy is used.
 - The contracts in (a) were drafted after INC-1042 and INC-1077 were known. Catching both incidents shows the contracts encode them, not that attest would have caught an incident nobody had seen.
 - (a) flags none of the 15 output-only faults, by design: its contracts check tool calls and the world, not the reply. (b) flags none of the 2 real incidents: the reply was the same whether the customer was refunded once or twice. The reply-versus-behavior split is the result; attest also has reply assertions, which (a) does not use here.
-- (a) misses 21 of the 30 mutants: all 13 `alter_world_effect`, all 4 `perturb_argument`, all 3 `inject_tool_error` and 1 of 3 `drop_tool_call` mutants. The drafted contracts have no check for them. `attest-engine mutate` suggests contracts that would kill the survivors; none are applied here.
+- (a) misses 13 of the 30 mutants: 4 of 6 `alter_world_effect`, 1 of 7 `alter_world_effect_seeded_orders`, all 4 `perturb_argument`, all 3 `inject_tool_error` and 1 of 3 `drop_tool_call`. The effect contracts are measured: each is given the fixture's world, and the refund-sum and notification-recipient contracts kill the duplicated and altered refund rows. They have no check for dropped notifications or refunds, a changed tool argument or a tool error. `attest-engine mutate` suggests contracts that would kill the survivors; none are applied here.
+- The 7 `alter_world_effect_seeded_orders` mutants edit `orders` rows that the agent never writes, so they change input data and not agent behavior. They are counted in the 30 and reported as their own subcategory; the 23 agent-behavior mutants are the cleaner measure of (a) on behavior (11/23).
 - Mutants are labeled faulty by operator, not by a judgment of harm, so some may be harmless (changing a refund's free-text reason, for example). An unchanged cassette stands in for each mutant's reply, so (b)'s 0/30 follows from the construction. It does not measure how strong output assertions are.
 - The false-positive rate is a property of the 5 variants written here, not of real traffic. One variant, a read-only retry of the order lookup, breaks (a)'s drafted "lookup_order at most once per order" contract. Another, a reply that states the amount without the words "refund of", breaks (b)'s phrase match. Each approach flags 3 of 18 clean runs because there are 3 of each variant.
 - Both approaches are scoped to what they were given. Neither is a competitor tool, and no other tool was run.
