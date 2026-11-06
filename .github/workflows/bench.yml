@@ -6,19 +6,22 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   test:
     name: Test & smoke-check benchmarks
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: go.mod
           cache: true
@@ -57,15 +60,17 @@ jobs:
 
     steps:
       - name: Checkout PR branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           path: pr
+          persist-credentials: false
 
       - name: Checkout base branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ github.event.pull_request.base.sha }}
           path: base
+          persist-credentials: false
 
       - name: Check base has benchmarks
         id: base-check
@@ -78,7 +83,7 @@ jobs:
           fi
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: pr/go.mod
           cache: true
@@ -129,25 +134,33 @@ jobs:
         run: |
           OUTPUT=$(benchstat base/results/bench-base.txt pr/results/bench-pr.txt 2>&1)
           echo "${OUTPUT}"
+          delimiter="EOF_$(openssl rand -hex 16)"
           {
-            echo 'result<<EOF'
+            echo "result<<${delimiter}"
             echo "${OUTPUT}"
-            echo 'EOF'
+            echo "${delimiter}"
           } >> "${GITHUB_OUTPUT}"
 
       - name: Comment PR with comparison
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         if: steps.base-check.outputs.has_benchmarks == 'true'
+        env:
+          BENCHSTAT_RESULT: ${{ steps.benchstat.outputs.result }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         with:
           script: |
-            const body = `## Benchmark Comparison
-
-            \`\`\`
-            ${{ steps.benchstat.outputs.result }}
-            \`\`\`
-
-            _Baseline: \`${{ github.event.pull_request.base.sha }}\` — PR: \`${{ github.event.pull_request.head.sha }}\`_
-            _Config: \`-benchtime=1s -count=5\` — filtered to core benchmarks_`;
+            const fence = '`'.repeat(3);
+            const body = [
+              '## Benchmark Comparison',
+              '',
+              fence,
+              process.env.BENCHSTAT_RESULT,
+              fence,
+              '',
+              `_Baseline: \`${process.env.BASE_SHA}\` — PR: \`${process.env.HEAD_SHA}\`_`,
+              '_Config: `-benchtime=1s -count=5` — filtered to core benchmarks_',
+            ].join('\n');
 
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
@@ -176,15 +189,19 @@ jobs:
             }
 
       - name: Comment PR (no baseline)
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         if: steps.base-check.outputs.has_benchmarks != 'true'
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         with:
           script: |
-            const body = `## Benchmark Results (no baseline)
-
-            Base branch has no benchmarks to compare against. PR benchmark results uploaded as artifact.
-
-            _PR: \`${{ github.event.pull_request.head.sha }}\`_`;
+            const body = [
+              '## Benchmark Results (no baseline)',
+              '',
+              'Base branch has no benchmarks to compare against. PR benchmark results uploaded as artifact.',
+              '',
+              `_PR: \`${process.env.HEAD_SHA}\`_`,
+            ].join('\n');
 
             await github.rest.issues.createComment({
               owner: context.repo.owner,
@@ -194,13 +211,13 @@ jobs:
             });
 
       - name: Upload PR benchmark results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: bench-results-pr
           path: pr/results/bench-pr.txt
 
       - name: Upload base benchmark results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: steps.base-check.outputs.has_benchmarks == 'true'
         with:
           name: bench-results-base
