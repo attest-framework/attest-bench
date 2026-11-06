@@ -142,6 +142,52 @@ def test_approach_c_paid_run_refuses_to_start_without_spend_caps(
         approach_c.run(engine_path, items, simulation=False)
 
 
+class ScriptedJudgeEngine:
+    """Stands in for the engine process: answers each judge request from a fixed status list."""
+
+    def __init__(self, statuses: list[str]) -> None:
+        self.statuses = statuses
+        self.cost_usd = 0.0
+        self.model_calls = 0
+        self.judge_calls = 0
+
+    def __enter__(self) -> ScriptedJudgeEngine:
+        return self
+
+    def __exit__(self, *_exc: object) -> None:
+        return None
+
+    def evaluate(
+        self, _trace: dict[str, object], _assertions: list[dict[str, object]]
+    ) -> list[dict[str, object]]:
+        status = self.statuses.pop(0)
+        return [{"status": status, "explanation": f"scripted {status}"}]
+
+
+@pytest.mark.parametrize("status", ["provider_unavailable", "judge_abstained", "judge_malformed"])
+def test_approach_c_row_without_verdict_stops_with_partial_results(
+    status: str,
+    engine_path: Path,
+    items: list[corpus.Item],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    for name, value in (
+        ("ATTEST_BUDGET_USD", "1"),
+        ("ATTEST_MAX_JUDGE_CALLS", "10"),
+        ("ATTEST_JUDGE_PROVIDER", "openai"),
+    ):
+        monkeypatch.setenv(name, value)
+    monkeypatch.setattr(
+        approach_c, "Engine", lambda *_a, **_k: ScriptedJudgeEngine(["pass", status])
+    )
+    judged = approach_c.judged(items)
+
+    verdicts, facts = approach_c.run(engine_path, items, simulation=False)
+
+    assert list(verdicts) == [judged[0].id]
+    assert facts["stopped"] == f"{judged[1].id}: {status}: scripted {status}"
+
+
 def test_resolve_engine_wrong_commit_raises(
     engine_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

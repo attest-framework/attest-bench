@@ -70,6 +70,11 @@ jobs:
               echo "::error::set both price inputs or neither"
               exit 1
             fi
+            price_re='^[0-9]+(\.[0-9]+)?$'
+            if [[ ! "${PRICE_IN}" =~ ${price_re} || ! "${PRICE_OUT}" =~ ${price_re} ]]; then
+              echo "::error::price inputs must be non-negative decimal numbers"
+              exit 1
+            fi
             echo "ATTEST_JUDGE_PRICE_IN=${PRICE_IN}" >> "${GITHUB_ENV}"
             echo "ATTEST_JUDGE_PRICE_OUT=${PRICE_OUT}" >> "${GITHUB_ENV}"
           elif [[ "${in_table}" -eq 0 ]]; then

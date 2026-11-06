@@ -43,8 +43,13 @@ go.work.sum
 .gemini
 .opencode/
 .serena/
+CLAUDE.md
+AGENTS.md
+.lane-report.md
+.milestone-prompt.md
+.fix-r*.md
 
-# Developer workspace (Sage-Dev generated files)
+# Local developer workspace
 .docs/
 .sage/
 

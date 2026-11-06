@@ -46,6 +46,11 @@ def transcript(item: corpus.Item) -> str:
     return "\n".join(lines)
 
 
+def _reason(row: dict[str, Any]) -> str:
+    """Why the judge returned no verdict: the row's explanation, or its serialized form."""
+    return str(row.get("explanation") or json.dumps(row))
+
+
 def judged(items: list[corpus.Item]) -> list[corpus.Item]:
     return [i for i in items if i.mutant is None]
 
@@ -61,7 +66,8 @@ def run(
 ) -> tuple[dict[str, Verdict], dict[str, Any]]:
     """Judge every non-mutant run. `simulation=True` checks the requests and calls no model.
 
-    A spend or call cap ends the run early; `stopped` in the facts names the run it hit."""
+    A spend or call cap, or a row with no verdict (provider unavailable, judge abstained or
+    malformed), ends the run early; `stopped` in the facts names the run and the reason."""
     if not simulation:
         require_caps()
     verdicts: dict[str, Verdict] = {}
@@ -82,7 +88,8 @@ def run(
                 stopped = f"{item.id}: budget_exhausted"
                 break
             if row["status"] not in ("pass", "hard_fail"):
-                raise EngineError(f"{item.id}: judge returned {row['status']}")
+                stopped = f"{item.id}: {row['status']}: {_reason(row)}"
+                break
             verdicts[item.id] = Verdict(row["status"] == "hard_fail", row["explanation"])
         facts = {
             "cost_usd": round(engine.cost_usd, 6),
