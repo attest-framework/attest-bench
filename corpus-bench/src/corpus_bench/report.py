@@ -173,6 +173,10 @@ def render_markdown(results: dict[str, Any]) -> str:
         )
     lines += [
         "",
+        "`alter_world_effect_seeded_orders` edits the seeded `orders` rows, which the agent never "
+        "writes. Those mutants change input data, not agent behavior, so they are reported apart "
+        "from `alter_world_effect`.",
+        "",
         "## False positives by clean variant",
         "",
         "| Clean run | Runs | (a) attest flags | (b) output assertions flag |",

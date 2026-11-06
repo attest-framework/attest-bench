@@ -1,4 +1,4 @@
-"""attest-engine access: the pinned release binary, JSON-RPC evaluation and `mutate`."""
+"""attest-engine access: the build of the pinned attest commit, JSON-RPC evaluation, `mutate`."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ REQUEST_TIMEOUT_S = 120.0
 
 
 class EngineError(RuntimeError):
-    """The engine failed, answered with an error, or is not the pinned release."""
+    """The engine failed, answered with an error, or is not the pinned build."""
 
 
 def load_lock() -> dict[str, Any]:
@@ -55,11 +55,31 @@ def resolve_engine() -> Path:
     path = Path(env) if env else DEFAULT_ENGINE
     if not path.is_file():
         raise EngineError(f"engine not found at {path}: run `make corpus-engine`")
+    lock = load_lock()
     version = engine_version(path)
-    pinned = load_lock()["version"]
-    if version != pinned:
-        raise EngineError(f"{path} is attest-engine {version}; the corpus pins {pinned}")
+    if version != lock["version"]:
+        raise EngineError(f"{path} is attest-engine {version}; the corpus pins {lock['version']}")
+    revision = engine_revision(path)
+    if revision != lock["commit"]:
+        raise EngineError(f"{path} was built from {revision}; the corpus pins {lock['commit']}")
     return path
+
+
+def engine_revision(path: Path) -> str:
+    """The `vcs.revision` stamped into the binary; a dirty build is rejected."""
+    out = subprocess.run(
+        ["go", "version", "-m", str(path)], capture_output=True, text=True, check=True, timeout=60
+    ).stdout
+    stamps = dict(
+        line.strip().removeprefix("build").strip().split("=", 1)
+        for line in out.splitlines()
+        if line.strip().startswith("build") and "=" in line
+    )
+    if "vcs.revision" not in stamps:
+        raise EngineError(f"{path} carries no vcs.revision; rebuild with `make corpus-engine`")
+    if stamps.get("vcs.modified") != "false":
+        raise EngineError(f"{path} was built from a modified tree: run `make corpus-engine`")
+    return stamps["vcs.revision"]
 
 
 def engine_version(path: Path) -> str:

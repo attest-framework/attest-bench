@@ -140,3 +140,23 @@ def test_approach_c_paid_run_refuses_to_start_without_spend_caps(
 
     with pytest.raises(eng.EngineError, match="ATTEST_BUDGET_USD"):
         approach_c.run(engine_path, items, simulation=False)
+
+
+def test_resolve_engine_wrong_commit_raises(
+    engine_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    lock = {**eng.load_lock(), "commit": "0" * 40}
+    monkeypatch.setattr(eng, "load_lock", lambda: lock)
+    monkeypatch.setenv("ATTEST_ENGINE_PATH", str(engine_path))
+
+    with pytest.raises(eng.EngineError, match="was built from"):
+        eng.resolve_engine()
+
+
+def test_mutants_kill_world_edits_through_embedded_effect_contracts(
+    items: list[corpus.Item],
+) -> None:
+    by_id = {i.id: i for i in items if i.mutant is not None}
+
+    killed = by_id["mutant/inc-1077-fixed:alter_world_effect:refunds.0.duplicate"].mutant
+    assert killed is not None and killed.killed

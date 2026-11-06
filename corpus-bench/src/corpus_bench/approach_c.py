@@ -8,6 +8,7 @@ without them. Mutants have no materialized trace, so only the other runs are jud
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 from typing import Any
@@ -58,10 +59,13 @@ def require_caps() -> None:
 def run(
     path: Path, items: list[corpus.Item], *, simulation: bool
 ) -> tuple[dict[str, Verdict], dict[str, Any]]:
-    """Judge every non-mutant run. `simulation=True` checks the requests and calls no model."""
+    """Judge every non-mutant run. `simulation=True` checks the requests and calls no model.
+
+    A spend or call cap ends the run early; `stopped` in the facts names the run it hit."""
     if not simulation:
         require_caps()
     verdicts: dict[str, Verdict] = {}
+    stopped: str | None = None
     with Engine(path, simulation=simulation) as engine:
         for item in judged(items):
             assert item.trace is not None
@@ -74,11 +78,15 @@ def run(
                     raise EngineError(f"{item.id}: simulation judged a run: {row['status']}")
                 verdicts[item.id] = Verdict(False, "not_evaluated(simulation)")
                 continue
+            if row["status"] == "not_evaluated" and "budget_exhausted" in json.dumps(row):
+                stopped = f"{item.id}: budget_exhausted"
+                break
             if row["status"] not in ("pass", "hard_fail"):
                 raise EngineError(f"{item.id}: judge returned {row['status']}")
             verdicts[item.id] = Verdict(row["status"] == "hard_fail", row["explanation"])
         facts = {
             "cost_usd": round(engine.cost_usd, 6),
             "model_calls": engine.model_calls + engine.judge_calls,
+            "stopped": stopped,
         }
     return verdicts, facts

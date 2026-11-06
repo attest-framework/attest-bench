@@ -433,6 +433,15 @@ def build_items(engine_path: Path, engine: eng.Engine) -> list[Item]:
     return items
 
 
+def _mutant_kind(row: dict[str, Any]) -> str:
+    """Operator name, with world edits to the seeded `orders` rows split out: the agent never
+    writes `orders`, so those mutants change input data rather than agent behavior."""
+    operator: str = row["operator"]
+    if operator == "alter_world_effect" and ":orders." in row["id"]:
+        return f"{operator}_seeded_orders"
+    return operator
+
+
 def _mutant_items(engine_path: Path, bases: dict[str, dict[str, Any]]) -> list[Item]:
     items: list[Item] = []
     with tempfile.TemporaryDirectory() as tmp:
@@ -440,9 +449,18 @@ def _mutant_items(engine_path: Path, bases: dict[str, dict[str, Any]]) -> list[I
             base = bases[base_id]
             fixture = copy.deepcopy(base)
             fixture["name"] = base_id
+            # `mutate` runs an effect contract only when the contract embeds the fixture's world.
+            for contract in fixture["contracts"]:
+                if contract["type"] == "effect":
+                    contract["spec"]["world"] = fixture["world"]
             path = Path(tmp) / f"{base_id}.attest.json"
             path.write_text(json.dumps(fixture), encoding="utf-8")
             report = eng.mutate(engine_path, path, seed=MUTATE_SEED, max_mutants=MUTANTS_PER_BASE)
+            if report["applicable_specs"] != len(fixture["contracts"]):
+                raise eng.EngineError(
+                    f"mutate {base_id}: {report['applicable_specs']} of "
+                    f"{len(fixture['contracts'])} contracts applicable"
+                )
             command = (
                 f"attest-engine mutate {base_id}.attest.json --json --seed={MUTATE_SEED} "
                 f"--max-mutants={MUTANTS_PER_BASE}"
@@ -453,7 +471,7 @@ def _mutant_items(engine_path: Path, bases: dict[str, dict[str, Any]]) -> list[I
                 items.append(
                     Item(
                         id=f"mutant/{row['id']}",
-                        label=f"fault:{row['operator']}",
+                        label=f"fault:{_mutant_kind(row)}",
                         group="mutant",
                         scenario=_scenario_of(base_id),
                         source=f"clean/{base_id}",

@@ -96,12 +96,13 @@ def cmd_judge(args: argparse.Namespace) -> int:
     if args.dry_run:
         print(f"dry run: {len(verdicts)} judge requests accepted by the engine, no model called")
         return 0
-    scored = approach_c.judged(items)
+    scored = [i for i in approach_c.judged(items) if i.id in verdicts]
     result = {
         "engine": eng.engine_version(path),
         "provider": os.environ["ATTEST_JUDGE_PROVIDER"],
         "model": os.environ.get("ATTEST_JUDGE_MODEL", ""),
         "judged_items": len(scored),
+        "judgeable_items": len(approach_c.judged(items)),
         **facts,
         **report.confusion(scored, verdicts),
     }
@@ -109,6 +110,9 @@ def cmd_judge(args: argparse.Namespace) -> int:
     out.mkdir(parents=True, exist_ok=True)
     (out / "judge-results.json").write_text(report.dumps(result), encoding="utf-8")
     print(report.dumps(result))
+    if facts["stopped"]:
+        print(f"judge run stopped early, partial results written: {facts['stopped']}")
+        return 1
     return 0
 
 
@@ -161,9 +165,8 @@ def main(argv: list[str] | None = None) -> int:
     show = sub.add_parser("show", help="print one corpus item")
     show.add_argument("id")
     show.set_defaults(func=cmd_show)
-    sub.add_parser("fetch-engine", help="download the pinned attest-engine").set_defaults(
-        func=cmd_fetch
-    )
+    fetch = sub.add_parser("fetch-engine", help="build attest-engine from the pinned attest commit")
+    fetch.set_defaults(func=cmd_fetch)
     args = parser.parse_args(argv)
     try:
         code: int = args.func(args)
