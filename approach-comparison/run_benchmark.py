@@ -263,7 +263,7 @@ def print_markdown_table(summaries: list[ApproachSummary]) -> None:
     print(f"| Consistency | {_val(a, 'consistency_pct', '.1f')}% | {_val(b, 'consistency_pct', '.1f')}% | {_val(c, 'consistency_pct', '.1f')}% |")
     print(f"| Judge Calls | {a.judge_call_count if a else 'N/A'} | {b.judge_call_count if b else 'N/A'} | {c.judge_call_count if c else 'N/A'} |")
     print(f"| Total Assertions | {a.total_assertions if a else 'N/A'} | {b.total_assertions if b else 'N/A'} | {c.total_assertions if c else 'N/A'} |")
-    print(f"| Pass Rate | {a.total_pass}/{a.total_assertions if a else '?'} | {b.total_pass}/{b.total_assertions if b else '?'} | {c.total_pass}/{c.total_assertions if c else '?'} |")
+    print(f"| Assertions passed (not a detection rate) | {a.total_pass}/{a.total_assertions if a else '?'} | {b.total_pass}/{b.total_assertions if b else '?'} | {c.total_pass}/{c.total_assertions if c else '?'} |")
     print()
 
 
@@ -660,7 +660,7 @@ def main() -> None:
         ("Consistency", *(_fmt_consistency(by_name[a].consistency_pct) for a in approaches)),
         ("Judge Calls", *(str(by_name[a].judge_call_count) for a in approaches)),
         ("Total Assertions", *(str(by_name[a].total_assertions) for a in approaches)),
-        ("Pass Rate", *(_fmt_pass_rate(by_name[a]) for a in approaches)),
+        ("Assertions passed (not a detection rate)", *(_fmt_pass_rate(by_name[a]) for a in approaches)),
     ]
     for row in rows:
         summary_table.add_row(*row)
@@ -703,13 +703,13 @@ def _fmt_consistency(pct: float) -> str:
 
 
 def _fmt_pass_rate(s: ApproachSummary) -> str:
-    """Format pass rate with color."""
+    """Format the share of this approach's own assertions that passed.
+
+    This is not a detection rate: the scenarios contain no labeled faults. Detection rates
+    come from the fault corpus (`make corpus-bench`).
+    """
     pct = (s.total_pass / s.total_assertions * 100) if s.total_assertions else 0
-    if pct >= 95:
-        return f"[green]{s.total_pass}/{s.total_assertions}[/green] ({pct:.0f}%)"
-    if pct >= 80:
-        return f"[yellow]{s.total_pass}/{s.total_assertions}[/yellow] ({pct:.0f}%)"
-    return f"[red]{s.total_pass}/{s.total_assertions}[/red] ({pct:.0f}%)"
+    return f"{s.total_pass}/{s.total_assertions} ({pct:.0f}%)"
 
 
 if __name__ == "__main__":

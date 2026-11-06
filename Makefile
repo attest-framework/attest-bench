@@ -4,7 +4,7 @@ BENCH_PKG  := ./internal/protocol/
 BENCH_TIME := -benchtime=5s
 BENCH_RUN  := -count=10 -cpu=1 -benchmem
 
-.PHONY: engine engine-profile bench-serial bench-protocol bench-startup bench-all bench-init bench-shutdown bench-subprocess bench-concurrent bench-concurrent-scaled bench-scaling bench-latency bench-sustained bench-codec bench-profile-allocs bench-full bench-report compare report clean bench-approaches bench-approaches-dry bench-approaches-single setup-approaches
+.PHONY: engine engine-profile bench-serial bench-protocol bench-startup bench-all bench-init bench-shutdown bench-subprocess bench-concurrent bench-concurrent-scaled bench-scaling bench-latency bench-sustained bench-codec bench-profile-allocs bench-full bench-report compare report clean bench-approaches bench-approaches-dry bench-approaches-single setup-approaches corpus-setup corpus-engine corpus-check corpus-manifest corpus-bench corpus-judge-dry corpus-judge
 
 engine:
 	CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o $(BINARY) $(CMD)
@@ -90,3 +90,34 @@ bench-approaches-single:
 
 setup-approaches:
 	cd approach-comparison && uv sync
+
+# --- Fault-corpus benchmark (corpus-bench/) ---
+
+TIMING_RUNS ?= 3
+
+corpus-setup:
+	cd corpus-bench && uv sync --frozen
+
+# Builds the pinned attest-engine into corpus-bench/bin (needs git, Go and network once).
+corpus-engine:
+	cd corpus-bench && uv run --frozen python -m corpus_bench fetch-engine
+
+corpus-check:
+	cd corpus-bench && uv run --frozen ruff check . && uv run --frozen ruff format --check . && uv run --frozen mypy && uv run --frozen pytest -q
+
+# Rewrites corpus-bench/corpus/manifest.json after an intended corpus change.
+corpus-manifest:
+	cd corpus-bench && uv run --frozen python -m corpus_bench manifest
+
+# Approaches (a) and (b), offline, $0: writes corpus-bench/published/{results.md,results.json,timings.json}.
+corpus-bench:
+	cd corpus-bench && uv run --frozen python -m corpus_bench run --timing-runs $(TIMING_RUNS)
+
+# Approach (c) request check: no model call.
+corpus-judge-dry:
+	cd corpus-bench && uv run --frozen python -m corpus_bench judge --dry-run
+
+# Approach (c), PAID: needs ATTEST_JUDGE_PROVIDER, ATTEST_JUDGE_MODEL, a key, ATTEST_BUDGET_USD and
+# ATTEST_MAX_JUDGE_CALLS. Run by the corpus-bench-judge workflow; not part of corpus-bench.
+corpus-judge:
+	cd corpus-bench && uv run --frozen python -m corpus_bench judge

@@ -156,7 +156,7 @@ func renderReport(path string, results map[string]*benchResult) int {
 		filename = path[idx+1:]
 	}
 
-	fmt.Println("# Phase 0 Benchmark Report")
+	fmt.Println("# Protocol Benchmark Report")
 	fmt.Println()
 	fmt.Printf("Generated: %s\n", time.Now().Format("2006-01-02 15:04:05"))
 	fmt.Printf("Source: %s\n", filename)

@@ -43,8 +43,13 @@ go.work.sum
 .gemini
 .opencode/
 .serena/
+CLAUDE.md
+AGENTS.md
+.lane-report.md
+.milestone-prompt.md
+.fix-r*.md
 
-# Developer workspace (Sage-Dev generated files)
+# Local developer workspace
 .docs/
 .sage/
 
@@ -62,7 +67,20 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 uv.lock
+!corpus-bench/uv.lock
 **/results/*.json
+
+# Corpus benchmark
+corpus-bench/bin/
+corpus-bench/.venv/
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+
+# Secrets
+.env.*
+*.pem
+*.key
 
 # macOS
 .DS_Store

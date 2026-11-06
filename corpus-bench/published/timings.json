@@ -1,0 +1,15 @@
+{
+  "note": "wall seconds on the machine that ran `make corpus-bench`; not reproducible",
+  "runs": 3,
+  "corpus_build_s": 0.089,
+  "approach_a_s": {
+    "median": 0.068,
+    "min": 0.066,
+    "max": 0.068
+  },
+  "approach_b_s": {
+    "median": 0.052,
+    "min": 0.051,
+    "max": 0.068
+  }
+}

@@ -5,7 +5,7 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 RESULTS_DIR="${REPO_ROOT}/results"
 
 if ! command -v benchstat &>/dev/null; then
-  echo "error: benchstat not found. Install with: go install golang.org/x/perf/cmd/benchstat@latest" >&2
+  echo "error: benchstat not found. Install with: go install golang.org/x/perf/cmd/benchstat@be2c69fb417e" >&2
   exit 1
 fi
 

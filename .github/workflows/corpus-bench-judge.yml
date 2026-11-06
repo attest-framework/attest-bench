@@ -1,0 +1,116 @@
+# Approach (c), judge-only. Paid and opt-in: runs only on workflow_dispatch, needs the
+# ATTEST_JUDGE_API_KEY secret, and caps spend and judge calls in the engine. Without the
+# secret the job fails before any model call and approach (c) stays "not run".
+name: Corpus Benchmark (judge, paid)
+
+on:
+  workflow_dispatch:
+    inputs:
+      provider:
+        description: 'Judge provider'
+        required: true
+        default: openai
+        type: choice
+        options: [openai, anthropic, gemini]
+      model:
+        description: 'Judge model id (required by anthropic and gemini)'
+        required: true
+        type: string
+      price_in_usd_per_1m:
+        description: 'Judge input price, USD per 1M tokens (required unless the model is gpt-4.1, gpt-4.1-mini or gpt-4.1-nano)'
+        required: false
+        type: string
+      price_out_usd_per_1m:
+        description: 'Judge output price, USD per 1M tokens (set together with the input price)'
+        required: false
+        type: string
+      budget_usd:
+        description: 'Spend cap in USD for the whole run'
+        required: true
+        default: '2'
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  judge:
+    name: Fault corpus, approach (c)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      ATTEST_JUDGE_PROVIDER: ${{ inputs.provider }}
+      ATTEST_JUDGE_MODEL: ${{ inputs.model }}
+      ATTEST_BUDGET_USD: ${{ inputs.budget_usd }}
+      # 2x the 35 judged runs: headroom for retries, which reserve a call each.
+      ATTEST_MAX_JUDGE_CALLS: '70'
+
+    steps:
+      - name: Require the judge key
+        env:
+          ATTEST_JUDGE_API_KEY: ${{ secrets.ATTEST_JUDGE_API_KEY }}
+        run: |
+          if [[ -z "${ATTEST_JUDGE_API_KEY}" ]]; then
+            echo "::error::secret ATTEST_JUDGE_API_KEY is not set: approach (c) is not run"
+            exit 1
+          fi
+
+      - name: Resolve judge prices
+        env:
+          MODEL: ${{ inputs.model }}
+          PRICE_IN: ${{ inputs.price_in_usd_per_1m }}
+          PRICE_OUT: ${{ inputs.price_out_usd_per_1m }}
+        run: |
+          case "${MODEL}" in
+            gpt-4.1|gpt-4.1-mini|gpt-4.1-nano) in_table=1 ;;
+            *) in_table=0 ;;
+          esac
+          if [[ -n "${PRICE_IN}" || -n "${PRICE_OUT}" ]]; then
+            if [[ -z "${PRICE_IN}" || -z "${PRICE_OUT}" ]]; then
+              echo "::error::set both price inputs or neither"
+              exit 1
+            fi
+            price_re='^[0-9]+(\.[0-9]+)?$'
+            if [[ ! "${PRICE_IN}" =~ ${price_re} || ! "${PRICE_OUT}" =~ ${price_re} ]]; then
+              echo "::error::price inputs must be non-negative decimal numbers"
+              exit 1
+            fi
+            echo "ATTEST_JUDGE_PRICE_IN=${PRICE_IN}" >> "${GITHUB_ENV}"
+            echo "ATTEST_JUDGE_PRICE_OUT=${PRICE_OUT}" >> "${GITHUB_ENV}"
+          elif [[ "${in_table}" -eq 0 ]]; then
+            echo "::error::model ${MODEL} is not in the built-in price table: set both price inputs"
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version: '1.27'
+          cache: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          enable-cache: false
+
+      - name: Build the pinned attest-engine
+        run: make corpus-setup corpus-engine
+
+      # The key reaches only this step, not the actions above.
+      - name: Judge the corpus
+        env:
+          ATTEST_JUDGE_API_KEY: ${{ secrets.ATTEST_JUDGE_API_KEY }}
+        run: make corpus-judge
+
+      - name: Upload judge results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: corpus-bench-judge-results
+          path: corpus-bench/published/judge-results.json
+          if-no-files-found: warn

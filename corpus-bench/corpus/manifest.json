@@ -1,0 +1,599 @@
+{
+  "engine": "1.1.0-rc.3",
+  "items": [
+    {
+      "generator": "cp regression/pre-fix-fixtures/py/inc-1042.attest.json corpus/sources/inc-1042-prefix-py.attest.json",
+      "group": "real-incident",
+      "id": "real/inc-1042-prefix",
+      "label": "fault:double_refund",
+      "scenario": "inc-1042",
+      "sha256": "3d4e0f8c5d57d20db028a6297c2533622cd967a4db360016062927b623aa5e7b",
+      "source": "refund-desk@bcc2ed7:regression/pre-fix-fixtures/py/inc-1042.attest.json"
+    },
+    {
+      "generator": "cp py/tests/attest/fixtures/inc-1077.attest.json corpus/sources/inc-1077-buggy-py.attest.json",
+      "group": "real-incident",
+      "id": "real/inc-1077-buggy",
+      "label": "fault:over_refund_wrong_recipient",
+      "scenario": "inc-1077",
+      "sha256": "72c30b694a6e48ebc117db6ceb3b4df9c162628e1b7c8f1f64e5f523bd66f316",
+      "source": "refund-desk@bcc2ed7:py/tests/attest/fixtures/inc-1077.attest.json"
+    },
+    {
+      "generator": "python -m corpus_bench show clean/inc-1042-fixed",
+      "group": "clean-base",
+      "id": "clean/inc-1042-fixed",
+      "label": "clean",
+      "scenario": "inc-1042",
+      "sha256": "1eddddbb3cca6984594a7b73ed3ab2f59a6554cb1cc7b0f3fc3c2ad6ef8b4e5a",
+      "source": "refund-desk@bcc2ed7:py/tests/attest/fixtures/inc-1042.attest.json"
+    },
+    {
+      "generator": "python -m corpus_bench show clean/inc-1042-fixed+benign_reason_wording",
+      "group": "clean-variant",
+      "id": "clean/inc-1042-fixed+benign_reason_wording",
+      "label": "clean",
+      "scenario": "inc-1042",
+      "sha256": "35092c8d65fa018be821e25487c4822bae164f8f77fdfd4e1bf3afbeaf475a10",
+      "source": "clean/inc-1042-fixed"
+    },
+    {
+      "generator": "python -m corpus_bench show clean/inc-1042-fixed+benign_usage_noise",
+      "group": "clean-variant",
+      "id": "clean/inc-1042-fixed+benign_usage_noise",
+      "label": "clean",
+      "scenario": "inc-1042",
+      "sha256": "ae3db700591157098b7ab74a181d956b945d22fba987990c62d13cbab1c920ee",
+      "source": "clean/inc-1042-fixed"
+    },
+    {
+      "generator": "python -m corpus_bench show clean/inc-1042-fixed+benign_reply_paraphrase",
+      "group": "clean-variant",
+      "id": "clean/inc-1042-fixed+benign_reply_paraphrase",
+      "label": "clean",
+      "scenario": "inc-1042",
+      "sha256": "06c5a01db67cda46d313a7a3e8d1beb7812f43f6cac66dcf8d7675d831b8a80d",
+      "source": "clean/inc-1042-fixed"
+    },
+    {
+      "generator": "python -m corpus_bench show clean/inc-1042-fixed+benign_reply_reworded",
+      "group": "clean-variant",
+      "id": "clean/inc-1042-fixed+benign_reply_reworded",
+      "label": "clean",
+      "scenario": "inc-1042",
+      "sha256": "2d43f83624fcbe7d8ab00866c432b132efe168c2788a44d7352b71e7274cf3a3",
+      "source": "clean/inc-1042-fixed"
+    },
+    {
+      "generator": "python -m corpus_bench show clean/inc-1042-fixed+benign_repeat_lookup",
+      "group": "clean-variant",
+      "id": "clean/inc-1042-fixed+benign_repeat_lookup",
+      "label": "clean",
+      "scenario": "inc-1042",
+      "sha256": "418c34ec68e2d735965f751c6088f612fd741c888ce07dfe75102e798103e3ee",
+      "source": "clean/inc-1042-fixed"
+    },
+    {
+      "generator": "python -m corpus_bench show output/inc-1042-fixed+reply_wrong_amount",
+      "group": "output-only",
+      "id": "output/inc-1042-fixed+reply_wrong_amount",
+      "label": "fault:reply_wrong_amount",
+      "scenario": "inc-1042",
+      "sha256": "ad42acfdd54458cac1ba87ab0fb874914316fc33205adab64df38c09b0815ed3",
+      "source": "clean/inc-1042-fixed"
+    },
+    {
+      "generator": "python -m corpus_bench show output/inc-1042-fixed+reply_double_amount",
+      "group": "output-only",
+      "id": "output/inc-1042-fixed+reply_double_amount",
+      "label": "fault:reply_double_amount",
+      "scenario": "inc-1042",
+      "sha256": "1c43c4b4949b4e3bfbe54a05eaec99c3d6cd98151f5b4bce5fc651daf25fbc70",
+      "source": "clean/inc-1042-fixed"
+    },
+    {
+      "generator": "python -m corpus_bench show output/inc-1042-fixed+reply_claims_failure",
+      "group": "output-only",
+      "id": "output/inc-1042-fixed+reply_claims_failure",
+      "label": "fault:reply_claims_failure",
+      "scenario": "inc-1042",
+      "sha256": "5619657be100c3df3093300fab03d9273105fbea5ebfd85280df0d3ceccf4bf5",
+      "source": "clean/inc-1042-fixed"
+    },
+    {
+      "generator": "python -m corpus_bench show output/inc-1042-fixed+reply_empty",
+      "group": "output-only",
+      "id": "output/inc-1042-fixed+reply_empty",
+      "label": "fault:reply_empty",
+      "scenario": "inc-1042",
+      "sha256": "7c1c9fecdc264b99e8ab82f48f09301008adea3774c19426bd41c37f53a83e23",
+      "source": "clean/inc-1042-fixed"
+    },
+    {
+      "generator": "python -m corpus_bench show output/inc-1042-fixed+reply_invented_credit",
+      "group": "output-only",
+      "id": "output/inc-1042-fixed+reply_invented_credit",
+      "label": "fault:reply_invented_credit",
+      "scenario": "inc-1042",
+      "sha256": "49c86b78fa011aa4b5e9a6fe88075c742359936f8a20479f844488ec64173e6a",
+      "source": "clean/inc-1042-fixed"
+    },
+    {
+      "generator": "python -m corpus_bench show clean/inc-1077-fixed",
+      "group": "clean-base",
+      "id": "clean/inc-1077-fixed",
+      "label": "clean",
+      "scenario": "inc-1077",
+      "sha256": "4cb00eef17862fa1896990cf2df750a2261034e1e018d8a5a9e682634e7bce64",
+      "source": "derived from inc-1077 sources"
+    },
+    {
+      "generator": "python -m corpus_bench show clean/inc-1077-fixed+benign_reason_wording",
+      "group": "clean-variant",
+      "id": "clean/inc-1077-fixed+benign_reason_wording",
+      "label": "clean",
+      "scenario": "inc-1077",
+      "sha256": "31024d1e6858e63fbc7a0f7142f6a8f1083c8bad007478987e328136c09b4c9f",
+      "source": "clean/inc-1077-fixed"
+    },
+    {
+      "generator": "python -m corpus_bench show clean/inc-1077-fixed+benign_usage_noise",
+      "group": "clean-variant",
+      "id": "clean/inc-1077-fixed+benign_usage_noise",
+      "label": "clean",
+      "scenario": "inc-1077",
+      "sha256": "522f243453c51e5e5888a197416b23e19d7eab0d44d102918e51fe227f149b6b",
+      "source": "clean/inc-1077-fixed"
+    },
+    {
+      "generator": "python -m corpus_bench show clean/inc-1077-fixed+benign_reply_paraphrase",
+      "group": "clean-variant",
+      "id": "clean/inc-1077-fixed+benign_reply_paraphrase",
+      "label": "clean",
+      "scenario": "inc-1077",
+      "sha256": "626d194d6eefd27c164b1b3420d1fa044f4a1ce602ddc78b929d5b9b37a7feb7",
+      "source": "clean/inc-1077-fixed"
+    },
+    {
+      "generator": "python -m corpus_bench show clean/inc-1077-fixed+benign_reply_reworded",
+      "group": "clean-variant",
+      "id": "clean/inc-1077-fixed+benign_reply_reworded",
+      "label": "clean",
+      "scenario": "inc-1077",
+      "sha256": "53488ceaa2b26e8c677290467cfa311a587f3734c82ff03861ca5722e994874c",
+      "source": "clean/inc-1077-fixed"
+    },
+    {
+      "generator": "python -m corpus_bench show clean/inc-1077-fixed+benign_repeat_lookup",
+      "group": "clean-variant",
+      "id": "clean/inc-1077-fixed+benign_repeat_lookup",
+      "label": "clean",
+      "scenario": "inc-1077",
+      "sha256": "c2faf0c1bbd1ad2fe1df1b925adcc48c2bbb5cac2425b9e8c9cbf69b1f30057a",
+      "source": "clean/inc-1077-fixed"
+    },
+    {
+      "generator": "python -m corpus_bench show output/inc-1077-fixed+reply_wrong_amount",
+      "group": "output-only",
+      "id": "output/inc-1077-fixed+reply_wrong_amount",
+      "label": "fault:reply_wrong_amount",
+      "scenario": "inc-1077",
+      "sha256": "7e1b9ac094d9e8d5e2e279661753d2f1bb56dc3b8da26bba0107603b7f034803",
+      "source": "clean/inc-1077-fixed"
+    },
+    {
+      "generator": "python -m corpus_bench show output/inc-1077-fixed+reply_double_amount",
+      "group": "output-only",
+      "id": "output/inc-1077-fixed+reply_double_amount",
+      "label": "fault:reply_double_amount",
+      "scenario": "inc-1077",
+      "sha256": "41b9d58b58006125a44e6aa430db07d8d9c372c972a43819c3d3b65cfe592b07",
+      "source": "clean/inc-1077-fixed"
+    },
+    {
+      "generator": "python -m corpus_bench show output/inc-1077-fixed+reply_claims_failure",
+      "group": "output-only",
+      "id": "output/inc-1077-fixed+reply_claims_failure",
+      "label": "fault:reply_claims_failure",
+      "scenario": "inc-1077",
+      "sha256": "79a82b58f94e7af0886945c4d02477598a68ce7245f57778ca66e5ae246d6c1f",
+      "source": "clean/inc-1077-fixed"
+    },
+    {
+      "generator": "python -m corpus_bench show output/inc-1077-fixed+reply_empty",
+      "group": "output-only",
+      "id": "output/inc-1077-fixed+reply_empty",
+      "label": "fault:reply_empty",
+      "scenario": "inc-1077",
+      "sha256": "55ac0dfa1914c84a9f92d4392c7f6dca6a9fd0533656754327c6a68b36fa2cba",
+      "source": "clean/inc-1077-fixed"
+    },
+    {
+      "generator": "python -m corpus_bench show output/inc-1077-fixed+reply_invented_credit",
+      "group": "output-only",
+      "id": "output/inc-1077-fixed+reply_invented_credit",
+      "label": "fault:reply_invented_credit",
+      "scenario": "inc-1077",
+      "sha256": "1f7bbc0ff97f3ff008e2cf3145cec7558d1460bcfffc96301edc79c188c3c910",
+      "source": "clean/inc-1077-fixed"
+    },
+    {
+      "generator": "python -m corpus_bench show clean/o-2001-fixed",
+      "group": "clean-base",
+      "id": "clean/o-2001-fixed",
+      "label": "clean",
+      "scenario": "o-2001",
+      "sha256": "e6bbef4f9088d328d8378ae89ee24955434061c9c019fad16a2d8cf8159bae57",
+      "source": "derived from o-2001 sources"
+    },
+    {
+      "generator": "python -m corpus_bench show clean/o-2001-fixed+benign_reason_wording",
+      "group": "clean-variant",
+      "id": "clean/o-2001-fixed+benign_reason_wording",
+      "label": "clean",
+      "scenario": "o-2001",
+      "sha256": "b13babe3b366d3221f864d29e9c6570cdfc93fa4ba6f0b6c1399379f0aa241d8",
+      "source": "clean/o-2001-fixed"
+    },
+    {
+      "generator": "python -m corpus_bench show clean/o-2001-fixed+benign_usage_noise",
+      "group": "clean-variant",
+      "id": "clean/o-2001-fixed+benign_usage_noise",
+      "label": "clean",
+      "scenario": "o-2001",
+      "sha256": "578ce9d7348451f5582af1771152cebab2a7391fd1d6f20070a7aac409de0805",
+      "source": "clean/o-2001-fixed"
+    },
+    {
+      "generator": "python -m corpus_bench show clean/o-2001-fixed+benign_reply_paraphrase",
+      "group": "clean-variant",
+      "id": "clean/o-2001-fixed+benign_reply_paraphrase",
+      "label": "clean",
+      "scenario": "o-2001",
+      "sha256": "95f4eddd94b92012ec09101ecc736541ae605eb7d88d9a0a047883580343b8c0",
+      "source": "clean/o-2001-fixed"
+    },
+    {
+      "generator": "python -m corpus_bench show clean/o-2001-fixed+benign_reply_reworded",
+      "group": "clean-variant",
+      "id": "clean/o-2001-fixed+benign_reply_reworded",
+      "label": "clean",
+      "scenario": "o-2001",
+      "sha256": "37c2a8fbb50e83af5ffdaa313b31727162bb459ff85693f85be76146f2144a1a",
+      "source": "clean/o-2001-fixed"
+    },
+    {
+      "generator": "python -m corpus_bench show clean/o-2001-fixed+benign_repeat_lookup",
+      "group": "clean-variant",
+      "id": "clean/o-2001-fixed+benign_repeat_lookup",
+      "label": "clean",
+      "scenario": "o-2001",
+      "sha256": "aa2b9f949451da8ca7a8bb960ef5ae8ab5a3ab61168aeb43280dedc007f6bd11",
+      "source": "clean/o-2001-fixed"
+    },
+    {
+      "generator": "python -m corpus_bench show output/o-2001-fixed+reply_wrong_amount",
+      "group": "output-only",
+      "id": "output/o-2001-fixed+reply_wrong_amount",
+      "label": "fault:reply_wrong_amount",
+      "scenario": "o-2001",
+      "sha256": "951b87a874dade376f4ae31faab368156f4756d7a399a955125a32b767ee6aa4",
+      "source": "clean/o-2001-fixed"
+    },
+    {
+      "generator": "python -m corpus_bench show output/o-2001-fixed+reply_double_amount",
+      "group": "output-only",
+      "id": "output/o-2001-fixed+reply_double_amount",
+      "label": "fault:reply_double_amount",
+      "scenario": "o-2001",
+      "sha256": "1d5c9496d57919f8953ba6f490c2141ebbdc8d1ad25952c6c02635bd9dd488ea",
+      "source": "clean/o-2001-fixed"
+    },
+    {
+      "generator": "python -m corpus_bench show output/o-2001-fixed+reply_claims_failure",
+      "group": "output-only",
+      "id": "output/o-2001-fixed+reply_claims_failure",
+      "label": "fault:reply_claims_failure",
+      "scenario": "o-2001",
+      "sha256": "325e2e09dc3c257cd1f312cb5327cac9cdc7c273694acb73304d270bb4ea9a31",
+      "source": "clean/o-2001-fixed"
+    },
+    {
+      "generator": "python -m corpus_bench show output/o-2001-fixed+reply_empty",
+      "group": "output-only",
+      "id": "output/o-2001-fixed+reply_empty",
+      "label": "fault:reply_empty",
+      "scenario": "o-2001",
+      "sha256": "4ec27755c7e02297c69117c39d3026ca30d3eef44462078ae0907a7ccfb8ff76",
+      "source": "clean/o-2001-fixed"
+    },
+    {
+      "generator": "python -m corpus_bench show output/o-2001-fixed+reply_invented_credit",
+      "group": "output-only",
+      "id": "output/o-2001-fixed+reply_invented_credit",
+      "label": "fault:reply_invented_credit",
+      "scenario": "o-2001",
+      "sha256": "843fd7aa2de517d03ba7146c51ac2a0b9732ef09b91c470710728917147af2d0",
+      "source": "clean/o-2001-fixed"
+    },
+    {
+      "generator": "attest-engine mutate inc-1042-fixed.attest.json --json --seed=0 --max-mutants=15",
+      "group": "mutant",
+      "id": "mutant/inc-1042-fixed:drop_tool_call:3",
+      "label": "fault:drop_tool_call",
+      "scenario": "inc-1042",
+      "sha256": "277f94f4d9167b58abeea7acf3c583644d605fdebc1e6e7c9f02c42509f84525",
+      "source": "clean/inc-1042-fixed"
+    },
+    {
+      "generator": "attest-engine mutate inc-1042-fixed.attest.json --json --seed=0 --max-mutants=15",
+      "group": "mutant",
+      "id": "mutant/inc-1042-fixed:drop_tool_call:5",
+      "label": "fault:drop_tool_call",
+      "scenario": "inc-1042",
+      "sha256": "0fb33678453ddd99bf48008317fe06ff047810bede6b704a981cd1558796ddb6",
+      "source": "clean/inc-1042-fixed"
+    },
+    {
+      "generator": "attest-engine mutate inc-1042-fixed.attest.json --json --seed=0 --max-mutants=15",
+      "group": "mutant",
+      "id": "mutant/inc-1042-fixed:duplicate_tool_call:1",
+      "label": "fault:duplicate_tool_call",
+      "scenario": "inc-1042",
+      "sha256": "dbae507368404f792e6bc8cfcc7cf13142078e04eb39974825fe3d7cbe8e22ad",
+      "source": "clean/inc-1042-fixed"
+    },
+    {
+      "generator": "attest-engine mutate inc-1042-fixed.attest.json --json --seed=0 --max-mutants=15",
+      "group": "mutant",
+      "id": "mutant/inc-1042-fixed:duplicate_tool_call:3",
+      "label": "fault:duplicate_tool_call",
+      "scenario": "inc-1042",
+      "sha256": "f65b934fe9a6a9e8c97c38790bd9886eb8c58da531a008b98968c5451ad5f8eb",
+      "source": "clean/inc-1042-fixed"
+    },
+    {
+      "generator": "attest-engine mutate inc-1042-fixed.attest.json --json --seed=0 --max-mutants=15",
+      "group": "mutant",
+      "id": "mutant/inc-1042-fixed:reorder_tool_calls:1-3",
+      "label": "fault:reorder_tool_calls",
+      "scenario": "inc-1042",
+      "sha256": "8d5c77a532900733bdf19d1afddcb662f05ad09ea7af7caf9f4251bb4f8bc1bd",
+      "source": "clean/inc-1042-fixed"
+    },
+    {
+      "generator": "attest-engine mutate inc-1042-fixed.attest.json --json --seed=0 --max-mutants=15",
+      "group": "mutant",
+      "id": "mutant/inc-1042-fixed:perturb_argument:3.reason",
+      "label": "fault:perturb_argument",
+      "scenario": "inc-1042",
+      "sha256": "defe97f9c0a7dd768155f73af8088874dcbd9e5699cb7893c21c23d46b4d0410",
+      "source": "clean/inc-1042-fixed"
+    },
+    {
+      "generator": "attest-engine mutate inc-1042-fixed.attest.json --json --seed=0 --max-mutants=15",
+      "group": "mutant",
+      "id": "mutant/inc-1042-fixed:perturb_argument:5.order_id",
+      "label": "fault:perturb_argument",
+      "scenario": "inc-1042",
+      "sha256": "d47205d98e2f92c8b87e9dd980f756c67b79f6eb4757ee2655410a6717f1881a",
+      "source": "clean/inc-1042-fixed"
+    },
+    {
+      "generator": "attest-engine mutate inc-1042-fixed.attest.json --json --seed=0 --max-mutants=15",
+      "group": "mutant",
+      "id": "mutant/inc-1042-fixed:inject_tool_error:3",
+      "label": "fault:inject_tool_error",
+      "scenario": "inc-1042",
+      "sha256": "05c10b90ea19725a6f134c1980ff76b78aeccff3d25981955d141f8472da59d9",
+      "source": "clean/inc-1042-fixed"
+    },
+    {
+      "generator": "attest-engine mutate inc-1042-fixed.attest.json --json --seed=0 --max-mutants=15",
+      "group": "mutant",
+      "id": "mutant/inc-1042-fixed:alter_world_effect:notifications.0.duplicate",
+      "label": "fault:alter_world_effect",
+      "scenario": "inc-1042",
+      "sha256": "c453b82753da13b29e88847f5502dcf9b4633916d9a3239e78b8aa711f237c8d",
+      "source": "clean/inc-1042-fixed"
+    },
+    {
+      "generator": "attest-engine mutate inc-1042-fixed.attest.json --json --seed=0 --max-mutants=15",
+      "group": "mutant",
+      "id": "mutant/inc-1042-fixed:alter_world_effect:notifications.0.drop",
+      "label": "fault:alter_world_effect",
+      "scenario": "inc-1042",
+      "sha256": "88c5f672b13beaeac7cbd72ef8d920d06022ff640d0c527a3c7cc1b24df0974d",
+      "source": "clean/inc-1042-fixed"
+    },
+    {
+      "generator": "attest-engine mutate inc-1042-fixed.attest.json --json --seed=0 --max-mutants=15",
+      "group": "mutant",
+      "id": "mutant/inc-1042-fixed:alter_world_effect:orders.0.duplicate",
+      "label": "fault:alter_world_effect_seeded_orders",
+      "scenario": "inc-1042",
+      "sha256": "41f07c3698459951beec64af54ba378625667014a7bb13637573190c378ad968",
+      "source": "clean/inc-1042-fixed"
+    },
+    {
+      "generator": "attest-engine mutate inc-1042-fixed.attest.json --json --seed=0 --max-mutants=15",
+      "group": "mutant",
+      "id": "mutant/inc-1042-fixed:alter_world_effect:orders.1.duplicate",
+      "label": "fault:alter_world_effect_seeded_orders",
+      "scenario": "inc-1042",
+      "sha256": "c534b127bf305501558fa52a41d3df7023cd65f0a6f0399845a4d56bfb1e644d",
+      "source": "clean/inc-1042-fixed"
+    },
+    {
+      "generator": "attest-engine mutate inc-1042-fixed.attest.json --json --seed=0 --max-mutants=15",
+      "group": "mutant",
+      "id": "mutant/inc-1042-fixed:alter_world_effect:orders.1.change.amount_cents",
+      "label": "fault:alter_world_effect_seeded_orders",
+      "scenario": "inc-1042",
+      "sha256": "ae17588465b477fa16310f34bb4801285b881ab8bee7bc222533dc2fa8a014f8",
+      "source": "clean/inc-1042-fixed"
+    },
+    {
+      "generator": "attest-engine mutate inc-1042-fixed.attest.json --json --seed=0 --max-mutants=15",
+      "group": "mutant",
+      "id": "mutant/inc-1042-fixed:alter_world_effect:refunds.0.drop",
+      "label": "fault:alter_world_effect",
+      "scenario": "inc-1042",
+      "sha256": "026facfd23fced770b60a7af1200ec884d52532e328ad48dc109d390dbecf912",
+      "source": "clean/inc-1042-fixed"
+    },
+    {
+      "generator": "attest-engine mutate inc-1042-fixed.attest.json --json --seed=0 --max-mutants=15",
+      "group": "mutant",
+      "id": "mutant/inc-1042-fixed:alter_world_effect:refunds.0.change.amount_cents",
+      "label": "fault:alter_world_effect",
+      "scenario": "inc-1042",
+      "sha256": "b7ba4dea95288dcec2afd4cade63d379a4c69abc56521500822ceee99512b48a",
+      "source": "clean/inc-1042-fixed"
+    },
+    {
+      "generator": "attest-engine mutate inc-1077-fixed.attest.json --json --seed=0 --max-mutants=15",
+      "group": "mutant",
+      "id": "mutant/inc-1077-fixed:drop_tool_call:1",
+      "label": "fault:drop_tool_call",
+      "scenario": "inc-1077",
+      "sha256": "3eb5ea65c1f216a88fd19ca664ad9ffa7e86e3a067ac0c316fc86c5a19a3ad6e",
+      "source": "clean/inc-1077-fixed"
+    },
+    {
+      "generator": "attest-engine mutate inc-1077-fixed.attest.json --json --seed=0 --max-mutants=15",
+      "group": "mutant",
+      "id": "mutant/inc-1077-fixed:duplicate_tool_call:1",
+      "label": "fault:duplicate_tool_call",
+      "scenario": "inc-1077",
+      "sha256": "6b88ef61a0622abcb962e63ea712afa706e05097ac5d679cfd2026828f6446fb",
+      "source": "clean/inc-1077-fixed"
+    },
+    {
+      "generator": "attest-engine mutate inc-1077-fixed.attest.json --json --seed=0 --max-mutants=15",
+      "group": "mutant",
+      "id": "mutant/inc-1077-fixed:duplicate_tool_call:5",
+      "label": "fault:duplicate_tool_call",
+      "scenario": "inc-1077",
+      "sha256": "608f863208b4dfc9e819e3294ec85fd3d85cd26917d82a909ba8c8e6695ad34f",
+      "source": "clean/inc-1077-fixed"
+    },
+    {
+      "generator": "attest-engine mutate inc-1077-fixed.attest.json --json --seed=0 --max-mutants=15",
+      "group": "mutant",
+      "id": "mutant/inc-1077-fixed:duplicate_tool_call:7",
+      "label": "fault:duplicate_tool_call",
+      "scenario": "inc-1077",
+      "sha256": "2162a883b8db12ed5921a461ea59385b7b386e0d59522897e0aefba02220481c",
+      "source": "clean/inc-1077-fixed"
+    },
+    {
+      "generator": "attest-engine mutate inc-1077-fixed.attest.json --json --seed=0 --max-mutants=15",
+      "group": "mutant",
+      "id": "mutant/inc-1077-fixed:reorder_tool_calls:5-7",
+      "label": "fault:reorder_tool_calls",
+      "scenario": "inc-1077",
+      "sha256": "e1bc02a647b9d65e73c532b930868cbb7d63659c69a278fe2071ddc2b5fb457a",
+      "source": "clean/inc-1077-fixed"
+    },
+    {
+      "generator": "attest-engine mutate inc-1077-fixed.attest.json --json --seed=0 --max-mutants=15",
+      "group": "mutant",
+      "id": "mutant/inc-1077-fixed:perturb_argument:5.order_id",
+      "label": "fault:perturb_argument",
+      "scenario": "inc-1077",
+      "sha256": "25bd695cfd9d23c4f8cf66c659815ca653040bdc3709f84bf546a70925acb92c",
+      "source": "clean/inc-1077-fixed"
+    },
+    {
+      "generator": "attest-engine mutate inc-1077-fixed.attest.json --json --seed=0 --max-mutants=15",
+      "group": "mutant",
+      "id": "mutant/inc-1077-fixed:perturb_argument:5.reason",
+      "label": "fault:perturb_argument",
+      "scenario": "inc-1077",
+      "sha256": "332e4b8df0baa2b9cb34b1532d52109a7b4bfbdfe6520e127e138503341943ea",
+      "source": "clean/inc-1077-fixed"
+    },
+    {
+      "generator": "attest-engine mutate inc-1077-fixed.attest.json --json --seed=0 --max-mutants=15",
+      "group": "mutant",
+      "id": "mutant/inc-1077-fixed:inject_tool_error:1",
+      "label": "fault:inject_tool_error",
+      "scenario": "inc-1077",
+      "sha256": "fe7211b8868134031faa8ba3a36f1a3dc9346ea70f3a2d47e1f024b0c5e70a30",
+      "source": "clean/inc-1077-fixed"
+    },
+    {
+      "generator": "attest-engine mutate inc-1077-fixed.attest.json --json --seed=0 --max-mutants=15",
+      "group": "mutant",
+      "id": "mutant/inc-1077-fixed:inject_tool_error:5",
+      "label": "fault:inject_tool_error",
+      "scenario": "inc-1077",
+      "sha256": "b8d9362da5d6d11552828f167ad7a26ec92bc6fc56a2f9047c2909e862f4d668",
+      "source": "clean/inc-1077-fixed"
+    },
+    {
+      "generator": "attest-engine mutate inc-1077-fixed.attest.json --json --seed=0 --max-mutants=15",
+      "group": "mutant",
+      "id": "mutant/inc-1077-fixed:alter_world_effect:orders.0.duplicate",
+      "label": "fault:alter_world_effect_seeded_orders",
+      "scenario": "inc-1077",
+      "sha256": "b3e77584765be3f0c5a6e46c8837563820d7d2f0598cac02a23f90774be5516b",
+      "source": "clean/inc-1077-fixed"
+    },
+    {
+      "generator": "attest-engine mutate inc-1077-fixed.attest.json --json --seed=0 --max-mutants=15",
+      "group": "mutant",
+      "id": "mutant/inc-1077-fixed:alter_world_effect:orders.1.duplicate",
+      "label": "fault:alter_world_effect_seeded_orders",
+      "scenario": "inc-1077",
+      "sha256": "4d4a762e73f2d6c2ab3ea198325ecf710f520f35d2953818f92a8aaa8ac849ba",
+      "source": "clean/inc-1077-fixed"
+    },
+    {
+      "generator": "attest-engine mutate inc-1077-fixed.attest.json --json --seed=0 --max-mutants=15",
+      "group": "mutant",
+      "id": "mutant/inc-1077-fixed:alter_world_effect:orders.2.duplicate",
+      "label": "fault:alter_world_effect_seeded_orders",
+      "scenario": "inc-1077",
+      "sha256": "4e000a49f9b949c198a0becd61a072d064f6d06ce6bd60affef444208c430141",
+      "source": "clean/inc-1077-fixed"
+    },
+    {
+      "generator": "attest-engine mutate inc-1077-fixed.attest.json --json --seed=0 --max-mutants=15",
+      "group": "mutant",
+      "id": "mutant/inc-1077-fixed:alter_world_effect:orders.2.drop",
+      "label": "fault:alter_world_effect_seeded_orders",
+      "scenario": "inc-1077",
+      "sha256": "3128897de8f933f31583e8640b54fc62ef1a5e262cb4b344ddfd1e92a1c2c58c",
+      "source": "clean/inc-1077-fixed"
+    },
+    {
+      "generator": "attest-engine mutate inc-1077-fixed.attest.json --json --seed=0 --max-mutants=15",
+      "group": "mutant",
+      "id": "mutant/inc-1077-fixed:alter_world_effect:refunds.0.duplicate",
+      "label": "fault:alter_world_effect",
+      "scenario": "inc-1077",
+      "sha256": "c1d9e125cdda763a552b7d0bb7e4c7c3424ce6faaf678cd728feaeb7bc10bca7",
+      "source": "clean/inc-1077-fixed"
+    },
+    {
+      "generator": "attest-engine mutate inc-1077-fixed.attest.json --json --seed=0 --max-mutants=15",
+      "group": "mutant",
+      "id": "mutant/inc-1077-fixed:alter_world_effect:refunds.0.drop",
+      "label": "fault:alter_world_effect",
+      "scenario": "inc-1077",
+      "sha256": "baf7f90f736b568b7606c158e762d9ea05628fdd275a7301e1bdaa506f94afb7",
+      "source": "clean/inc-1077-fixed"
+    }
+  ],
+  "mutate": {
+    "bases": [
+      "inc-1042-fixed",
+      "inc-1077-fixed"
+    ],
+    "max_mutants_per_base": 15,
+    "seed": 0
+  },
+  "refund_desk_commit": "bcc2ed7ec0276930df147173d85ac59294f5a4d1"
+}

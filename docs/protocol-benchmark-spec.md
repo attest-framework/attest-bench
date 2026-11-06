@@ -1,10 +1,10 @@
 # Protocol Benchmark Specification
 
-Phase 0 performance validation for the Attest protocol engine. This document defines what is measured, how it is measured, and what constitutes a pass/fail result.
+Performance validation for the Attest protocol engine. This document defines what is measured, how it is measured, and what constitutes a pass/fail result.
 
 ## Objective
 
-Validate that JSON-RPC over stdio meets latency requirements for the Attest SDK before committing to the protocol in Phase 1. If thresholds are breached, pivot to an alternative protocol (protobuf, streaming).
+Validate that JSON-RPC over stdio meets latency requirements for the Attest SDK before committing to the protocol. If thresholds are breached, pivot to an alternative protocol (protobuf, streaming).
 
 ## Architecture
 
@@ -130,7 +130,7 @@ Traces are generated deterministically using `math/rand` with a fixed seed (42).
 
 **How:** For each codec × step count combination, marshal a `trace.Trace` struct to `[]byte` then unmarshal back. Uses `trace.GenerateSyntheticTraceN()` for consistent payloads.
 
-**Purpose:** Quantify the codec swap lever. If CI runner baselines show 500-step roundtrip exceeding 20ms, the codec delivering the greatest throughput improvement with drop-in API compatibility becomes a Phase 1 requirement.
+**Purpose:** Quantify the codec swap lever. If CI runner baselines show 500-step roundtrip exceeding 20ms, the codec delivering the greatest throughput improvement with drop-in API compatibility becomes a requirement.
 
 ### BenchmarkSerializationScaling/{10,50,100,250,500,1000}_steps
 
@@ -158,7 +158,7 @@ Traces are generated deterministically using `math/rand` with a fixed seed (42).
 | XL (500-step) evaluate_batch p50 | < 15ms | 30ms | > 30ms |
 | Engine cold start to initialize response | < 500ms | 1000ms | > 1000ms |
 
-**PASS:** All metrics below threshold. Proceed with JSON-RPC for Phase 1 SDK.
+**PASS:** All metrics below threshold. Proceed with JSON-RPC for the SDK.
 
 **PIVOT:** Any metric exceeds pivot trigger. Evaluate protobuf (Pivot 1) or chunked streaming (Pivot 2).
 
@@ -252,9 +252,9 @@ Segmentio delivers 2.40x throughput improvement at 500 steps (365 MB/s vs 152 MB
 
 ### Decision
 
-**Go/No-Go: PASS** — All in-process metrics below target. Proceed with JSON-RPC for Phase 1 SDK.
+**Go/No-Go: PASS** — All in-process metrics below target. Proceed with JSON-RPC for the SDK.
 
-**Monitoring:** The 500-step subprocess roundtrip at 15.35ms marginally exceeds the 15ms target. This does not affect the go/no-go decision (hard ceiling is 30ms) but warrants monitoring on CI runners. If CI baselines (E1) show this exceeding 20ms on Linux, the segmentio codec swap (2.40x improvement) moves from deferred lever to Phase 1 requirement.
+**Monitoring:** The 500-step subprocess roundtrip at 15.35ms marginally exceeds the 15ms target. This does not affect the go/no-go decision (hard ceiling is 30ms) but warrants monitoring on CI runners. If CI baselines (E1) show this exceeding 20ms on Linux, the segmentio codec swap (2.40x improvement) moves from deferred lever to requirement.
 
 ## Running Benchmarks
 
@@ -300,4 +300,4 @@ Protobuf toolchain: `protoc` + `protoc-gen-go` (`google.golang.org/protobuf`). D
 - Synthetic traces are seeded (seed=42) for deterministic generation
 - Baseline files are committed to `results/baselines/`
 - Regression detection via `benchstat` (p=0.05 threshold)
-- Install benchstat: `go install golang.org/x/perf/cmd/benchstat@latest`
+- Install benchstat: `go install golang.org/x/perf/cmd/benchstat@be2c69fb417e`
