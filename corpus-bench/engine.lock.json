@@ -1,0 +1,6 @@
+{
+  "repo": "https://github.com/attest-framework/attest.git",
+  "commit": "2e59fd612e6804c97f88f04b3f6397ded4a6d0f3",
+  "version": "1.1.0-rc.3",
+  "note": "built from source: the fixtures use relational effect contracts that the v1.1.0-rc.3 release binary rejects; move to the first release that accepts them"
+}

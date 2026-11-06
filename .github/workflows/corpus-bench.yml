@@ -1,0 +1,63 @@
+name: Corpus Benchmark
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'corpus-bench/**'
+      - 'Makefile'
+      - '.github/workflows/corpus-bench.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'corpus-bench/**'
+      - 'Makefile'
+      - '.github/workflows/corpus-bench.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  corpus:
+    name: Fault corpus, approaches (a) and (b)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version: '1.27'
+          cache: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          enable-cache: false
+
+      - name: Install dependencies
+        run: make corpus-setup
+
+      - name: Build the pinned attest-engine
+        run: make corpus-engine
+
+      - name: Lint, type-check and test
+        run: make corpus-check
+
+      - name: Run the corpus benchmark
+        run: make corpus-bench TIMING_RUNS=1
+
+      - name: Published table matches the run
+        run: git diff --exit-code -- corpus-bench/published/results.md corpus-bench/published/results.json
+
+      - name: Upload results
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: corpus-bench-results
+          path: corpus-bench/published/
