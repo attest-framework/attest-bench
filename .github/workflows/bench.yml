@@ -143,7 +143,7 @@ jobs:
 
       - name: Comment PR with comparison
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
-        if: steps.base-check.outputs.has_benchmarks == 'true'
+        if: steps.base-check.outputs.has_benchmarks == 'true' && github.event.pull_request.head.repo.full_name == github.repository
         env:
           BENCHSTAT_RESULT: ${{ steps.benchstat.outputs.result }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
@@ -190,7 +190,7 @@ jobs:
 
       - name: Comment PR (no baseline)
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
-        if: steps.base-check.outputs.has_benchmarks != 'true'
+        if: steps.base-check.outputs.has_benchmarks != 'true' && github.event.pull_request.head.repo.full_name == github.repository
         env:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         with:

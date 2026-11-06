@@ -16,6 +16,14 @@ on:
         description: 'Judge model id (required by anthropic and gemini)'
         required: true
         type: string
+      price_in_usd_per_1m:
+        description: 'Judge input price, USD per 1M tokens (required unless the model is gpt-4.1, gpt-4.1-mini or gpt-4.1-nano)'
+        required: false
+        type: string
+      price_out_usd_per_1m:
+        description: 'Judge output price, USD per 1M tokens (set together with the input price)'
+        required: false
+        type: string
       budget_usd:
         description: 'Spend cap in USD for the whole run'
         required: true
@@ -34,7 +42,8 @@ jobs:
       ATTEST_JUDGE_PROVIDER: ${{ inputs.provider }}
       ATTEST_JUDGE_MODEL: ${{ inputs.model }}
       ATTEST_BUDGET_USD: ${{ inputs.budget_usd }}
-      ATTEST_MAX_JUDGE_CALLS: '40'
+      # 2x the 35 judged runs: headroom for retries, which reserve a call each.
+      ATTEST_MAX_JUDGE_CALLS: '70'
 
     steps:
       - name: Require the judge key
@@ -43,6 +52,28 @@ jobs:
         run: |
           if [[ -z "${ATTEST_JUDGE_API_KEY}" ]]; then
             echo "::error::secret ATTEST_JUDGE_API_KEY is not set: approach (c) is not run"
+            exit 1
+          fi
+
+      - name: Resolve judge prices
+        env:
+          MODEL: ${{ inputs.model }}
+          PRICE_IN: ${{ inputs.price_in_usd_per_1m }}
+          PRICE_OUT: ${{ inputs.price_out_usd_per_1m }}
+        run: |
+          case "${MODEL}" in
+            gpt-4.1|gpt-4.1-mini|gpt-4.1-nano) in_table=1 ;;
+            *) in_table=0 ;;
+          esac
+          if [[ -n "${PRICE_IN}" || -n "${PRICE_OUT}" ]]; then
+            if [[ -z "${PRICE_IN}" || -z "${PRICE_OUT}" ]]; then
+              echo "::error::set both price inputs or neither"
+              exit 1
+            fi
+            echo "ATTEST_JUDGE_PRICE_IN=${PRICE_IN}" >> "${GITHUB_ENV}"
+            echo "ATTEST_JUDGE_PRICE_OUT=${PRICE_OUT}" >> "${GITHUB_ENV}"
+          elif [[ "${in_table}" -eq 0 ]]; then
+            echo "::error::model ${MODEL} is not in the built-in price table: set both price inputs"
             exit 1
           fi
 
@@ -72,7 +103,9 @@ jobs:
         run: make corpus-judge
 
       - name: Upload judge results
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: corpus-bench-judge-results
           path: corpus-bench/published/judge-results.json
+          if-no-files-found: warn
