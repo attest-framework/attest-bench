@@ -1,10 +1,10 @@
 # attest-bench
 
-Benchmark harness for the Attest protocol engine. Phase 0 validation gate for Attest protocol performance and stability.
+Benchmarks for [attest](https://github.com/attest-framework/attest): protocol and codec performance of the engine, and a labeled fault corpus that measures how often each way of checking an agent run flags a faulty run.
 
 ## Purpose
 
-attest-bench is a dedicated repository for performance testing and validation of the Attest protocol engine. It serves as the gating criteria for Phase 1 SDK work and ensures protocol implementations meet performance targets before being integrated into the main Attest codebase.
+attest-bench holds three things: the engine protocol and codec benchmarks with their go/no-go criteria, a three-approach cost and consistency comparison on support scenarios (`approach-comparison/`), and the fault-corpus benchmark (`corpus-bench/`) with its measured detection table.
 
 For the main Attest framework, see [github.com/attest-framework/attest](https://github.com/attest-framework/attest).
 
@@ -16,7 +16,69 @@ make bench-all
 
 This runs the complete benchmark suite with synthetic traces and reports results to `results/$(date +%Y-%m-%d-%H%M).txt`.
 
+## Fault-corpus benchmark
+
+`corpus-bench/` measures, on a small labeled corpus of synthetic [Refund Desk](https://github.com/attest-framework/refund-desk) runs, how many faulty runs each approach flags (true-positive rate) and how many clean runs it flags (false-positive rate). `make corpus-bench` reproduces the table below offline, at $0, for approaches (a) and (b).
+
+**Approaches**
+
+- **(a) attest contracts and effects.** The contracts committed with the Refund Desk fixtures (tool order, per-order call cardinality, and the effect contracts "refunds sum to at most the order amount" and "the notification goes to the order's customer"), evaluated by `attest-engine` on each run's recorded trace and world snapshot. No agent is re-run and no model is called.
+- **(b) pytest with a cassette and output assertions.** Each run's recorded final model response sits in a VCR-style cassette that a pytest test replays by request key. The test asserts that the reply states the refunded amount, does not say "could not" and does not state double the amount. It sees the reply and nothing else. It is a hand-written harness, not the `vcrpy` library.
+- **(c) judge-only.** Not run. It needs a model key and runs only through the opt-in `corpus-bench-judge` workflow (`workflow_dispatch`, spend-capped). No (c) number is published.
+
+**Corpus** (65 runs, each with an id, a label, a source and a generator command in [`corpus-bench/corpus/manifest.json`](corpus-bench/corpus/manifest.json))
+
+| Group | Runs | Label | Source |
+|---|---|---|---|
+| Real incident runs | 2 | fault | Refund Desk recordings: INC-1042 before the fix (double refund), INC-1077 (refunds total above the order amount, wrong recipient) |
+| Output-only faults | 15 | fault | A clean run with only the reply changed: wrong amount, doubled amount, claims failure, empty, invented credit |
+| Behavior mutants | 30 | fault | `attest-engine mutate --seed=0 --max-mutants=15` on two clean runs |
+| Clean runs | 3 | clean | INC-1042 fixed (recording); INC-1077 with the fix applied and the O-2001 run, both derived by editing a recording |
+| Clean variants | 15 | clean | Five harmless changes to each clean run |
+
+**Results** (engine `attest-engine` 1.1.0-rc.3 built from attest commit `2e59fd6`; full tables in [`corpus-bench/published/results.md`](corpus-bench/published/results.md))
+
+| Approach | Faulty runs flagged | Clean runs flagged | Cost (USD) | Model calls |
+|---|---|---|---|---|
+| (a) attest contracts + effects | 11/47 (23.4%) | 3/18 (16.7%) | $0.00 | 0 |
+| (b) pytest + cassette, output assertions | 12/47 (25.5%) | 3/18 (16.7%) | $0.00 | 0 |
+| (a) or (b) flags | 23/47 (48.9%) | 6/18 (33.3%) | $0.00 | 0 |
+| (c) judge-only | not run | not run | not run | not run |
+
+| Fault group | Runs | (a) | (b) |
+|---|---|---|---|
+| Real incident runs | 2 | 2/2 | 0/2 |
+| Output-only faults | 15 | 0/15 | 12/15 |
+| Behavior mutants | 30 | 9/30 | 0/30 |
+
+Wall time is in `corpus-bench/published/timings.json` (median of three runs on the author's machine, under a second for each approach); it varies by machine and run. Everything else is byte-for-byte reproducible: the same engine commit, the same seed, the same table.
+
+**Limits. Read these before quoting a number.**
+
+- The aggregate rates are not detection rates for agents in general. They depend on how many runs of each kind the corpus holds, and the corpus holds 47 faulty and 18 clean runs chosen by the benchmark's authors. The per-group rows are the informative ones.
+- The corpus is synthetic and small. Every run comes from one scripted-model agent, Refund Desk. Its Python and TypeScript recordings differ only in the command that produced them, so one copy is used.
+- The contracts in (a) were drafted after INC-1042 and INC-1077 were known. Catching both incidents shows the contracts encode them, not that attest would have caught an incident nobody had seen.
+- (a) flags none of the 15 output-only faults, by design: its contracts check tool calls and the world, not the reply. (b) flags none of the 2 real incidents: the reply was the same whether the customer was refunded once or twice. The reply-versus-behavior split is the result; attest also has reply assertions, which (a) does not use here.
+- (a) misses 21 of the 30 mutants: all 13 `alter_world_effect`, all 4 `perturb_argument`, all 3 `inject_tool_error` and 1 of 3 `drop_tool_call` mutants. The drafted contracts have no check for them. `attest-engine mutate` suggests contracts that would kill the survivors; none are applied here.
+- Mutants are labeled faulty by operator, not by a judgment of harm, so some may be harmless (changing a refund's free-text reason, for example). An unchanged cassette stands in for each mutant's reply, so (b)'s 0/30 follows from the construction. It does not measure how strong output assertions are.
+- The false-positive rate is a property of the 5 variants written here, not of real traffic. One variant, a read-only retry of the order lookup, breaks (a)'s drafted "lookup_order at most once per order" contract. Another, a reply that states the amount without the words "refund of", breaks (b)'s phrase match. Each approach flags 3 of 18 clean runs because there are 3 of each variant.
+- Both approaches are scoped to what they were given. Neither is a competitor tool, and no other tool was run.
+- The released `v1.1.0-rc.3` engine binary rejects the relational contracts in these fixtures, so the engine is built from the pinned commit in [`corpus-bench/engine.lock.json`](corpus-bench/engine.lock.json).
+
+**Run it**
+
+```bash
+make corpus-setup corpus-engine   # once: uv sync, then build the pinned engine (needs git, Go, network)
+make corpus-bench                 # offline: writes corpus-bench/published/{results.md,results.json,timings.json}
+make corpus-check                 # ruff, mypy, pytest for the harness
+make corpus-manifest              # rewrite corpus/manifest.json after an intended corpus change
+```
+
+`make corpus-bench` rebuilds the corpus and fails if it differs from `corpus/manifest.json`. `make corpus-judge-dry` checks that approach (c)'s requests are valid without calling a model.
+
 ## Go/No-Go Criteria
+
+Measured on an M1 Pro on 2026-02-18; the committed baselines are in `results/baselines/`.
 
 | Benchmark | Steps | Assertions | Target | Hard Ceiling | Actual | Status |
 |-----------|-------|------------|--------|-------------|--------|--------|
@@ -56,6 +118,8 @@ scripts/published-bench.sh --tag v1.0.0-rc.5 --platform darwin-arm64 --out /tmp/
   - `cmd/attest-engine/` — CLI entry point (`serve` subcommand)
   - `internal/protocol/` — JSON-RPC codec, stdio message loop, benchmarks
   - `internal/trace/` — Trace types and synthetic data generation
+- `approach-comparison/` — Cost, time and consistency of three assertion styles on 50 support scenarios (Python, needs a model key)
+- `corpus-bench/` — Fault-corpus benchmark: labeled runs, approaches (a)/(b)/(c), published table
 - `docs/` — Specifications and architecture decisions
 - `results/baselines/` — Committed benchmark baselines for regression detection
 - `scripts/` — Benchmark utilities (run, compare, report)
@@ -83,11 +147,13 @@ make bench-report                 # Generate structured markdown report from lat
 
 ## Approach Comparison (Python)
 
-A Python benchmark comparing 3 evaluation approaches across 50 customer support scenarios:
+A Python benchmark comparing 3 assertion styles across 50 customer support scenarios on cost, wall time and run-to-run consistency:
 
-- **All LLM Judge** — broad judge calls for every evaluation dimension (~175 judge calls for 50 scenarios)
+- **All LLM Judge** — broad judge calls for every evaluation dimension
 - **Graduated** — deterministic layers (schema, constraints, trace, content) + judge for subjective criteria only
 - **Pure Deterministic** — deterministic assertions only, zero judge calls, zero API cost
+
+The scenarios contain no labeled faults, so this benchmark reports no detection rates; the share of assertions that passed says nothing about whether faults would be caught. Detection is measured in the [fault-corpus benchmark](#fault-corpus-benchmark). A full run calls a paid model, so no results from it are published here.
 
 ```bash
 make setup-approaches                        # install dependencies (uv sync)
@@ -98,26 +164,9 @@ make bench-approaches-single SCENARIO=SC-001 # run a single scenario ID
 
 Each trial starts a fresh engine with an isolated cache directory for experimental reproducibility. Pass `--use-cache` to reuse cached judge/embedding results across trials for faster iteration during development.
 
-Requirements: Python 3.12+, `uv`, `ATTEST_OPENAI_API_KEY` for full runs (not needed for `--dry-run`).
+Requirements: Python 3.12+, `uv`, `attest-ai>=1.0.1`, and `OPENAI_API_KEY` (or `ATTEST_JUDGE_API_KEY`) for full runs (not needed for `--dry-run`).
 
 Results are written to `approach-comparison/results/benchmark-<timestamp>.json`.
-
-### Results (50 scenarios × 3 trials, gpt-4.1 judge)
-
-| Metric | All LLM Judge | Graduated | Pure Deterministic |
-|--------|--------------|-----------|-------------------|
-| Total Cost (USD) | $0.5571 | $0.2659 | $0.0000 |
-| Wall Clock (s) | 573.6s | 303.9s | 0.4s |
-| Consistency | 96.5% | 99.0% | 100.0% |
-| Judge Calls | 600 | 330 | 0 |
-| Total Assertions | 600 | 2466 | 2436 |
-| Pass Rate | 442/600 (74%) | 2431/2466 (99%) | 2388/2436 (98%) |
-
-**Key findings:**
-- Graduated achieves 99% pass rate at 48% of the all-judge cost and 53% of the wall clock time
-- Pure deterministic covers 98% of assertions at zero cost in under 1 second
-- All-judge has the lowest pass rate (74%) — broad judge calls without deterministic grounding are less reliable
-- Consistency tracks inversely with LLM dependency: 100% → 99% → 96.5%
 
 ## Specification
 

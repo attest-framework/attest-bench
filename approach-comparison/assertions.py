@@ -12,13 +12,10 @@ JUDGE_MODEL = "gpt-4.1"
 
 
 def build_all_judge_assertions(scenario: Scenario, result: AgentResult) -> ExpectChain:
-    """Approach A: Naive Judge — broad LLM judge calls for every evaluation dimension.
+    """Approach A: All LLM Judge — broad LLM judge calls for every evaluation dimension.
 
-    Models what teams actually do when they "just use LLM-as-judge for everything":
     3-4 coarse judge calls per scenario covering correctness, tool usage,
     response quality, and subjective criteria. No deterministic assertions.
-
-    ~3-4 judge calls per scenario, ~175 total across 50 scenarios.
     """
     chain = expect(result)
 
@@ -69,11 +66,8 @@ def build_all_judge_assertions(scenario: Scenario, result: AgentResult) -> Expec
 def build_graduated_assertions(scenario: Scenario, result: AgentResult) -> ExpectChain:
     """Approach B: Graduated — deterministic layers (L1-L4) + judge (L6) for subjective only.
 
-    Uses the right tool for each job. Deterministic checks handle schema,
-    constraints, trace ordering, and content. Judge calls reserved for
-    genuinely subjective criteria (tone, empathy, clarity).
-
-    ~10-14 deterministic assertions + 2-3 judge calls per scenario.
+    Deterministic checks handle schema, constraints, trace ordering, and content.
+    Judge calls are reserved for subjective criteria (tone, empathy, clarity).
     """
     chain = expect(result)
 
@@ -119,9 +113,7 @@ def build_deterministic_assertions(scenario: Scenario, result: AgentResult) -> E
     """Approach C: Pure Deterministic — L1-L4 only. No LLM judge. Zero API cost.
 
     Same deterministic assertions as Approach B, plus keyword-based proxies
-    for subjective criteria where possible.
-
-    ~12-16 deterministic assertions per scenario, 0 judge calls.
+    for subjective criteria where possible. No judge calls.
     """
     chain = expect(result)
 
