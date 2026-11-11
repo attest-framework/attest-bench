@@ -27,9 +27,11 @@
 #
 # Trust limit: the checksums file and the binary come from the same release, so
 # the sha256 check detects corruption and mismatched uploads, not a compromised
-# release. Releases carry no build attestations today. The engine runs with an
-# allowlisted environment in an empty directory; that guards against accidental
-# leaks and is not a sandbox.
+# release. Releases since 1.1.0 carry GitHub build provenance that
+# `gh attestation verify` can check; this script verifies only the sha256
+# checksum and does not check attestations. The engine runs with an allowlisted
+# environment in an empty directory; that guards against accidental leaks and
+# is not a sandbox.
 #
 # Environment: GH_TOKEN (read-only is enough; fetch phase only),
 # BENCH_TIME (default 200x, fixed iterations), BENCH_COUNT (default 10, at
