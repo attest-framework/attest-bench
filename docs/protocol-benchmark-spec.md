@@ -1,6 +1,6 @@
 # Protocol Benchmark Specification
 
-Performance validation for the Attest protocol engine. This document defines what is measured, how it is measured, and what constitutes a pass/fail result.
+This suite measures the time spent encoding and moving messages, separate from the work of checking an agent run. It uses a minimal engine, not the full Attest 1.1.0 assertion engine. This document records the protocol selection experiment and its February 2026 baselines; for current-release measurements, use the [published-engine benchmark](../README.md#benchmarking-published-engine-releases).
 
 ## Objective
 
@@ -283,7 +283,7 @@ make bench-report
 
 ## Pivot Protocol: Protobuf
 
-Directory: `pivot/protobuf/`
+Proposed directory (not implemented): `pivot/protobuf/`.
 
 If JSON-RPC breaches pivot triggers, implement length-prefixed protobuf as an alternative:
 
@@ -296,7 +296,7 @@ Protobuf toolchain: `protoc` + `protoc-gen-go` (`google.golang.org/protobuf`). D
 
 ## Reproducibility
 
-- All benchmarks use `-count=10 -cpu=1 -benchmem` for statistical stability
+- Most individual targets use `-benchtime=5s -count=10 -cpu=1 -benchmem`; `bench-full` uses 10 seconds and 5 samples, and `bench-latency` uses 10 seconds and 5 samples. Allocation profiling uses a fixed 100 iterations.
 - Synthetic traces are seeded (seed=42) for deterministic generation
 - Baseline files are committed to `results/baselines/`
 - Regression detection via `benchstat` (p=0.05 threshold)
