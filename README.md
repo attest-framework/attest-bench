@@ -1,10 +1,17 @@
 # attest-bench
 
-Benchmarks for [attest](https://github.com/attest-framework/attest): protocol and codec performance of the engine, and a labeled fault corpus that measures how often each way of checking an agent run flags a faulty run.
+Benchmarks for [attest](https://github.com/attest-framework/attest): how much time its message transport takes, how evaluation styles compare in cost and consistency, and which faults checks catch in recorded agent runs. These are separate experiments, not a general ranking of agent-testing tools.
 
 ## Purpose
 
-attest-bench holds three things: the engine protocol and codec benchmarks with their go/no-go criteria, a three-approach cost and consistency comparison on support scenarios (`approach-comparison/`), and the fault-corpus benchmark (`corpus-bench/`) with its measured detection table.
+The current Attest release is [1.1.0 "Hardened"](https://github.com/attest-framework/attest/releases/tag/v1.1.0). Published measurements below are historical: the protocol baselines date from February 2026, and the corpus results use a pre-1.1.0 source build. They are not measurements of the final 1.1.0 release.
+
+| Suite | What it measures | Run from the repository root | Paid API key? |
+|---|---|---|---|
+| Protocol and codec | Serialization, message round-trips, startup and concurrency in the local minimal Go engine, not full assertion evaluation | `make bench-all` or individual `make bench-*` targets below | No |
+| Published engine | Startup and assertion round-trips in downloaded release binaries | `scripts/published-bench.sh --tag v1.1.0 --platform darwin-arm64 --out /tmp/published-bench` | No |
+| Approach comparison | Cost, time and consistency of three assertion styles on support scenarios | `make setup-approaches`, then `make bench-approaches-dry` or `make bench-approaches` | Optional; full runs need a configured judge key |
+| Fault corpus | Faults and clean runs flagged by contracts versus output assertions | `make corpus-setup corpus-engine`, then `make corpus-bench` | No; optional `make corpus-judge` calls a paid judge |
 
 For the main Attest framework, see [github.com/attest-framework/attest](https://github.com/attest-framework/attest).
 
@@ -14,7 +21,7 @@ For the main Attest framework, see [github.com/attest-framework/attest](https://
 make bench-all
 ```
 
-This runs the complete benchmark suite with synthetic traces and reports results to `results/$(date +%Y-%m-%d-%H%M).txt`.
+Requires Go (see [`go.mod`](go.mod)) and Make. This runs the local minimal-engine benchmarks with synthetic traces and saves output to `results/bench-<timestamp>.txt`; it does not run the Python or paid suites.
 
 ## Fault-corpus benchmark
 
@@ -36,7 +43,7 @@ This runs the complete benchmark suite with synthetic traces and reports results
 | Clean runs | 3 | clean | INC-1042 fixed (recording); INC-1077 with the fix applied and the O-2001 run, both derived by editing a recording |
 | Clean variants | 15 | clean | Five harmless changes to each clean run |
 
-**Results** (engine `attest-engine` 1.1.0-rc.3 built from attest commit `2e59fd6`; full tables in [`corpus-bench/published/results.md`](corpus-bench/published/results.md))
+**Results** (historical pre-1.1.0 source build from attest commit [`2e59fd612e6804c97f88f04b3f6397ded4a6d0f3`](https://github.com/attest-framework/attest/commit/2e59fd612e6804c97f88f04b3f6397ded4a6d0f3), labeled `1.1.0-rc.3` in [`engine.lock.json`](corpus-bench/engine.lock.json) and the generated [results](corpus-bench/published/results.md)). That label is not the released `v1.1.0-rc.3` binary, and these numbers have not been rerun against final 1.1.0.
 
 | Approach | Faulty runs flagged | Clean runs flagged | Cost (USD) | Model calls |
 |---|---|---|---|---|
@@ -66,7 +73,7 @@ Wall time is in `corpus-bench/published/timings.json` (median of three runs on t
 - Mutants are labeled faulty by operator, not by a judgment of harm, so some may be harmless (changing a refund's free-text reason, for example). An unchanged cassette stands in for each mutant's reply, so (b)'s 0/30 follows from the construction. It does not measure how strong output assertions are.
 - The false-positive rate is a property of the 5 variants written here, not of real traffic. One variant, a read-only retry of the order lookup, breaks (a)'s drafted "lookup_order at most once per order" contract. Another, a reply that states the amount without the words "refund of", breaks (b)'s phrase match. Each approach flags 3 of 18 clean runs because there are 3 of each variant.
 - Both approaches are scoped to what they were given. Neither is a competitor tool, and no other tool was run.
-- The released `v1.1.0-rc.3` engine binary rejects the relational contracts in these fixtures, so the engine is built from the pinned commit in [`corpus-bench/engine.lock.json`](corpus-bench/engine.lock.json).
+- The released `v1.1.0-rc.3` engine binary rejects the relational contracts in these fixtures, so reproduction still builds the pinned source commit in [`corpus-bench/engine.lock.json`](corpus-bench/engine.lock.json). Relational contracts shipped in 1.1.0; changing this historical pin requires a separate benchmark run, not relabeling the existing results.
 
 **Run it**
 
@@ -97,13 +104,22 @@ Measured on an M1 Pro on 2026-02-18; the committed baselines are in `results/bas
 The `benchmark-regression` workflow also benchmarks the released `attest-engine` binary from an [attest](https://github.com/attest-framework/attest) GitHub release and reports the delta against the previous published release:
 
 ```bash
-gh workflow run benchmark-regression.yml -f tag=v1.0.0-rc.5
-gh workflow run benchmark-regression.yml -f tag=v1.0.0 -f base_tag=v1.0.0-rc.5
+gh workflow run benchmark-regression.yml -f tag=v1.1.0
+gh workflow run benchmark-regression.yml -f tag=v1.1.0 -f base_tag=v1.0.1
 ```
 
 `tag` and `base_tag` must match `vX.Y.Z` or `vX.Y.Z-rc.N`. `base_tag` defaults to the previous published `v*` release by semver order (rc tags count). Without `tag`, the workflow keeps its source-built mode against `results/baselines/ci-linux-amd64.txt`.
 
-For each tag the job downloads `attest-engine-linux-amd64` and `checksums-sha256.txt` with the read-only workflow token in a fetch step, verifies the sha256, and fails closed on a missing asset, a missing or duplicate entry or a mismatch. A second step, whose environment has no token, re-verifies each binary against the hashes passed from the fetch step before every run. The checksums file and the binary come from the same release, so this detects corruption and mismatched uploads, not a compromised release; releases carry no build attestations yet. The engine runs with an allowlisted environment in an empty working directory, which guards against accidental leaks and is not a sandbox (the runner user has sudo). The job does not use the Go cache, since it executes downloaded binaries.
+For each tag the job downloads `attest-engine-linux-amd64` and `checksums-sha256.txt` with the read-only workflow token in a fetch step, verifies the sha256, and fails closed on a missing asset, a missing or duplicate entry or a mismatch. A second step, whose environment has no token, re-verifies each binary against the hashes passed from the fetch step before every run. These checks detect corruption and mismatched uploads, not a compromised release: the checksum and binary come from the same release. Attest 1.1.0 release binaries also carry GitHub build-provenance attestations, but this benchmark workflow does not verify them. To verify a downloaded 1.1.0 Linux binary separately:
+
+```bash
+gh attestation verify attest-engine-linux-amd64 \
+  --repo attest-framework/attest \
+  --signer-workflow attest-framework/attest/.github/workflows/release.yml \
+  --source-ref refs/tags/v1.1.0
+```
+
+This verifies the build's workflow and tag identity, not that the code is safe. See the [configuration guide](https://github.com/attest-framework/attest/blob/v1.1.0/docs/guides/configuration.md). The benchmark engine runs with an allowlisted environment in an empty working directory, which guards against accidental leaks and is not a sandbox (the runner user has sudo). The job does not use the Go cache because it executes release binaries.
 
 It then runs `BenchmarkPublishedEngine*` (process start plus `initialize`, and `evaluate_batch` round-trips; every assertion in the first response must pass) against each binary, alternating base and tag samples (10 samples of 200 iterations, at least 6 so benchstat can compute intervals), and compares them with benchstat. The delta is written to the job summary and uploaded as the `published-engine-benchmarks` artifact.
 
@@ -112,7 +128,7 @@ Gate: the job fails only when a `sec/op` row shows a significant regression abov
 To run it locally (needs `gh`, `benchstat` and Go; `scripts/test-published-bench.sh` holds the fixture tests for the gate and tag ordering and runs in the `Benchmark` workflow):
 
 ```bash
-scripts/published-bench.sh --tag v1.0.0-rc.5 --platform darwin-arm64 --out /tmp/published-bench
+scripts/published-bench.sh --tag v1.1.0 --platform darwin-arm64 --out /tmp/published-bench
 ```
 
 ## Project Structure
@@ -165,9 +181,9 @@ make bench-approaches                        # full run (fresh engine per trial)
 make bench-approaches-single SCENARIO=SC-001 # run a single scenario ID
 ```
 
-Each trial starts a fresh engine with an isolated cache directory for experimental reproducibility. Pass `--use-cache` to reuse cached judge/embedding results across trials for faster iteration during development.
+Each trial starts a fresh engine with an isolated cache directory for experimental reproducibility. For development, run `uv run python run_benchmark.py --use-cache` from `approach-comparison/` to share the engine and cached evaluations across trials.
 
-Requirements: Python 3.12+, `uv`, `attest-ai>=1.0.1`, and `OPENAI_API_KEY` (or `ATTEST_JUDGE_API_KEY`) for full runs (not needed for `--dry-run`).
+Requirements: Python 3.12+, `uv`, and a full Attest engine (not this repository's minimal protocol engine) for non-dry runs. `make setup-approaches` runs `uv sync`; the project's dependency floor is still `attest-ai>=1.0.1`. To select the current SDK without changing that manifest, run `uv sync --upgrade-package attest-ai` from `approach-comparison/` and check the resolved version before recording results. Full judge runs require `OPENAI_API_KEY` (or `ATTEST_JUDGE_API_KEY`); they are optional and incur provider charges. Dry runs need neither a key nor an engine and do not measure real assertion outcomes.
 
 Results are written to `approach-comparison/results/benchmark-<timestamp>.json`.
 
